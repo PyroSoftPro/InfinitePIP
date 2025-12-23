@@ -84,6 +84,12 @@ class InfinitePIPModernUI:
             relief="flat",
             borderwidth=1,
         )
+        self.style.configure(
+            "ModernCardHover.TFrame",
+            background=self.colors["bg_card_hover"],
+            relief="flat",
+            borderwidth=1,
+        )
 
         # Typography styles
         self.style.configure(
@@ -436,47 +442,58 @@ class InfinitePIPModernUI:
 
     def setup_layout(self):
         """Setup the main layout with modern responsive design"""
-        # Main container
-        main_container = ttk.Frame(self.root, style="Modern.TFrame")
-        main_container.pack(fill=tk.BOTH, expand=True, padx=40, pady=30)
+        # Root grid: header fixed, content grows, footer fixed
+        self.root.grid_rowconfigure(0, weight=1)
+        self.root.grid_columnconfigure(0, weight=1)
+
+        main_container = ttk.Frame(self.root, style="Modern.TFrame", padding=(32, 24))
+        main_container.grid(row=0, column=0, sticky="nsew")
+        main_container.grid_rowconfigure(1, weight=1)
+        main_container.grid_columnconfigure(0, weight=1)
 
         # Header section
         self.create_header(main_container)
 
-        # Content area with proper spacing
+        # Content area (expands)
         content_frame = ttk.Frame(main_container, style="Modern.TFrame")
-        content_frame.pack(fill=tk.BOTH, expand=True, pady=(30, 0))
+        content_frame.grid(row=1, column=0, sticky="nsew", pady=(18, 0))
+        content_frame.grid_rowconfigure(0, weight=1)
+        content_frame.grid_columnconfigure(0, weight=1)
 
-        # Create tabbed interface
         self.create_modern_tabs(content_frame)
 
         # Footer with actions
         self.create_footer(main_container)
 
+        # Keep text responsive on resize (wrap long labels)
+        self.root.bind("<Configure>", self._on_root_resize, add="+")
+
     def create_header(self, parent):
         """Create modern header with title and status"""
         header_frame = ttk.Frame(parent, style="Modern.TFrame")
-        header_frame.pack(fill=tk.X, pady=(0, 20))
+        header_frame.grid(row=0, column=0, sticky="ew", pady=(0, 18))
+        header_frame.grid_columnconfigure(0, weight=1)
+        header_frame.grid_columnconfigure(1, weight=0)
 
         # Left side - Title and subtitle
         title_section = ttk.Frame(header_frame, style="Modern.TFrame")
-        title_section.pack(side=tk.LEFT, anchor=tk.W)
+        title_section.grid(row=0, column=0, sticky="w")
 
         title_label = ttk.Label(
             title_section, text="InfinitePIP", style="ModernTitle.TLabel"
         )
-        title_label.pack(anchor=tk.W)
+        title_label.grid(row=0, column=0, sticky="w")
 
-        subtitle_label = ttk.Label(
+        self._header_subtitle_label = ttk.Label(
             title_section,
             text="Advanced Picture-in-Picture for Desktop",
             style="ModernSubtitle.TLabel",
         )
-        subtitle_label.pack(anchor=tk.W, pady=(5, 0))
+        self._header_subtitle_label.grid(row=1, column=0, sticky="w", pady=(5, 0))
 
         # Right side - Status and info
         status_section = ttk.Frame(header_frame, style="Modern.TFrame")
-        status_section.pack(side=tk.RIGHT, anchor=tk.E)
+        status_section.grid(row=0, column=1, sticky="e")
 
         # Active PIPs counter
         self.status_label = ttk.Label(
@@ -485,7 +502,7 @@ class InfinitePIPModernUI:
             style="ModernText.TLabel",
             foreground=self.colors["accent_secondary"],
         )
-        self.status_label.pack(anchor=tk.E)
+        self.status_label.grid(row=0, column=0, sticky="e")
 
         self.pips_counter = ttk.Label(
             status_section,
@@ -493,13 +510,13 @@ class InfinitePIPModernUI:
             style="ModernText.TLabel",
             foreground=self.colors["text_secondary"],
         )
-        self.pips_counter.pack(anchor=tk.E, pady=(5, 0))
+        self.pips_counter.grid(row=1, column=0, sticky="e", pady=(5, 0))
 
     def create_modern_tabs(self, parent):
         """Create modern tabbed interface with proper scrolling"""
         # Create notebook
         self.notebook = ttk.Notebook(parent, style="Modern.TNotebook")
-        self.notebook.pack(fill=tk.BOTH, expand=True)
+        self.notebook.grid(row=0, column=0, sticky="nsew")
 
         # Create tabs
         self.create_monitors_tab()
@@ -534,25 +551,29 @@ class InfinitePIPModernUI:
         # Create scrollable area
         scrollable_area = ModernScrollableFrame(padded_frame, style="Modern.TFrame")
         scrollable_area.pack(fill=tk.BOTH, expand=True)
+        scrollable_area.configure_canvas(background=self.colors["bg_primary"])
 
         # Create grid container
         grid_container = ttk.Frame(scrollable_area.scrollable_frame, style="Modern.TFrame")
         grid_container.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # Add monitor cards in grid layout
-        columns = 3  # Number of columns in grid
+        # Build cards once; grid them responsively based on available width.
+        self._monitors_grid_container = grid_container
+        self._monitor_cards = []
+        self._monitor_columns_current = None
+        self._monitor_layout_after_id = None
+
         for i, monitor in enumerate(self.monitors):
-            row = i // columns
-            col = i % columns
-            self.create_monitor_grid_card(grid_container, monitor, i, row, col)
+            card = self._create_monitor_card_widget(grid_container, monitor, i)
+            self._monitor_cards.append(card)
 
-    def create_monitor_grid_card(self, parent, monitor, index, row, col):
-        """Create a modern monitor card for grid layout"""
-        # Configure grid weights for responsive layout
-        parent.grid_columnconfigure(col, weight=1, uniform="monitor")
-        parent.grid_rowconfigure(row, weight=0)
+        # Initial layout + responsive relayout on resize.
+        self._layout_monitor_cards()
+        scrollable_area.canvas.bind("<Configure>", self._schedule_layout_monitor_cards, add="+")
+        grid_container.bind("<Configure>", self._schedule_layout_monitor_cards, add="+")
 
-        # Create square card container
+    def _create_monitor_card_widget(self, parent, monitor, index):
+        """Create a modern monitor card widget (positioned later by responsive grid)."""
         card_container = ttk.Frame(
             parent,
             style="ModernCard.TFrame",
@@ -560,7 +581,6 @@ class InfinitePIPModernUI:
             borderwidth=1,
             padding="15",
         )
-        card_container.grid(row=row, column=col, padx=8, pady=8, sticky="ew")
 
         # Monitor icon and number (large)
         icon_frame = ttk.Frame(card_container, style="ModernCard.TFrame")
@@ -659,6 +679,44 @@ class InfinitePIPModernUI:
         )
         create_button.pack(fill=tk.X)
 
+        return card_container
+
+    def _schedule_layout_monitor_cards(self, _event=None):
+        """Debounce monitor card relayout (called on resize/configure events)."""
+        try:
+            if self._monitor_layout_after_id:
+                self.root.after_cancel(self._monitor_layout_after_id)
+        except Exception:
+            pass
+        self._monitor_layout_after_id = self.root.after(50, self._layout_monitor_cards)
+
+    def _layout_monitor_cards(self):
+        """Responsive grid: choose column count based on available width."""
+        if not hasattr(self, "_monitors_grid_container"):
+            return
+        parent = self._monitors_grid_container
+        width = parent.winfo_width()
+        if width <= 1:
+            return
+
+        min_card_width = 300
+        gap = 16
+        columns = max(1, min(4, (width + gap) // (min_card_width + gap)))
+
+        if columns != self._monitor_columns_current:
+            # Reset column weights
+            for c in range(0, 8):
+                parent.grid_columnconfigure(c, weight=0)
+            for c in range(columns):
+                parent.grid_columnconfigure(c, weight=1, uniform="monitor")
+            self._monitor_columns_current = columns
+
+        # Grid cards
+        for i, card in enumerate(getattr(self, "_monitor_cards", [])):
+            row = i // columns
+            col = i % columns
+            card.grid(row=row, column=col, sticky="nsew", padx=8, pady=8)
+
     def create_windows_tab(self):
         """Create windows tab with scrollable content"""
         windows_frame = ttk.Frame(self.notebook, style="Modern.TFrame")
@@ -693,6 +751,7 @@ class InfinitePIPModernUI:
         # Create scrollable area
         scrollable_area = ModernScrollableFrame(padded_frame, style="Modern.TFrame")
         scrollable_area.pack(fill=tk.BOTH, expand=True)
+        scrollable_area.configure_canvas(background=self.colors["bg_primary"])
 
         # Window list container
         self.windows_container = scrollable_area.scrollable_frame
@@ -826,45 +885,28 @@ class InfinitePIPModernUI:
         input_card = ModernCard(padded_frame, padding="30")
         input_card.pack(fill=tk.X, pady=10)
 
-        # Input grid
-        input_grid = ttk.Frame(input_card.content_frame, style="ModernCard.TFrame")
-        input_grid.pack(fill=tk.X)
+        # Responsive input grid (reflows on narrow widths)
+        self._region_fields_container = ttk.Frame(input_card.content_frame, style="ModernCard.TFrame")
+        self._region_fields_container.pack(fill=tk.X)
+        self._region_field_frames = []
 
-        # X coordinate
-        x_frame = ttk.Frame(input_grid, style="ModernCard.TFrame")
-        x_frame.pack(side=tk.LEFT, padx=(0, 15))
+        def _make_field(label: str, default: str):
+            frame = ttk.Frame(self._region_fields_container, style="ModernCard.TFrame")
+            ttk.Label(frame, text=label, style="CardSubtitle.TLabel").pack(anchor=tk.W)
+            entry = ttk.Entry(frame, width=1, style="Modern.TEntry")
+            entry.pack(fill=tk.X, expand=True, pady=(5, 0))
+            entry.insert(0, default)
+            return frame, entry
 
-        ttk.Label(x_frame, text="X Position", style="CardSubtitle.TLabel").pack(anchor=tk.W)
-        self.region_x_entry = ttk.Entry(x_frame, width=10, style="Modern.TEntry")
-        self.region_x_entry.pack(pady=(5, 0))
-        self.region_x_entry.insert(0, "0")
+        x_frame, self.region_x_entry = _make_field("X Position", "0")
+        y_frame, self.region_y_entry = _make_field("Y Position", "0")
+        w_frame, self.region_width_entry = _make_field("Width", "800")
+        h_frame, self.region_height_entry = _make_field("Height", "600")
+        self._region_field_frames = [x_frame, y_frame, w_frame, h_frame]
 
-        # Y coordinate
-        y_frame = ttk.Frame(input_grid, style="ModernCard.TFrame")
-        y_frame.pack(side=tk.LEFT, padx=(0, 15))
-
-        ttk.Label(y_frame, text="Y Position", style="CardSubtitle.TLabel").pack(anchor=tk.W)
-        self.region_y_entry = ttk.Entry(y_frame, width=10, style="Modern.TEntry")
-        self.region_y_entry.pack(pady=(5, 0))
-        self.region_y_entry.insert(0, "0")
-
-        # Width
-        width_frame = ttk.Frame(input_grid, style="ModernCard.TFrame")
-        width_frame.pack(side=tk.LEFT, padx=(0, 15))
-
-        ttk.Label(width_frame, text="Width", style="CardSubtitle.TLabel").pack(anchor=tk.W)
-        self.region_width_entry = ttk.Entry(width_frame, width=10, style="Modern.TEntry")
-        self.region_width_entry.pack(pady=(5, 0))
-        self.region_width_entry.insert(0, "800")
-
-        # Height
-        height_frame = ttk.Frame(input_grid, style="ModernCard.TFrame")
-        height_frame.pack(side=tk.LEFT, padx=(0, 15))
-
-        ttk.Label(height_frame, text="Height", style="CardSubtitle.TLabel").pack(anchor=tk.W)
-        self.region_height_entry = ttk.Entry(height_frame, width=10, style="Modern.TEntry")
-        self.region_height_entry.pack(pady=(5, 0))
-        self.region_height_entry.insert(0, "600")
+        self._region_fields_columns_current = None
+        self._layout_region_fields()
+        self._region_fields_container.bind("<Configure>", self._schedule_layout_region_fields, add="+")
 
         # Preview section
         preview_card = ModernCard(padded_frame, padding="30")
@@ -935,6 +977,7 @@ class InfinitePIPModernUI:
         # Create scrollable area
         scrollable_area = ModernScrollableFrame(padded_frame, style="Modern.TFrame")
         scrollable_area.pack(fill=tk.BOTH, expand=True)
+        scrollable_area.configure_canvas(background=self.colors["bg_primary"])
 
         # Active PIPs container
         self.active_pips_container = scrollable_area.scrollable_frame
@@ -999,33 +1042,41 @@ class InfinitePIPModernUI:
     def create_footer(self, parent):
         """Create footer with actions and info"""
         footer_frame = ttk.Frame(parent, style="Modern.TFrame")
-        footer_frame.pack(fill=tk.X, pady=(30, 0))
+        footer_frame.grid(row=2, column=0, sticky="ew", pady=(18, 0))
+        footer_frame.grid_columnconfigure(0, weight=1)
+        footer_frame.grid_rowconfigure(1, weight=0)
 
         # Separator line
         separator = ttk.Frame(footer_frame, style="Modern.TFrame", height=1)
-        separator.pack(fill=tk.X, pady=(0, 20))
-        separator.configure(style="Modern.TFrame")
+        separator.grid(row=0, column=0, sticky="ew", pady=(0, 16))
+        # Give it a visible line color by using the border color as background.
+        try:
+            separator.configure(style="Modern.TFrame")
+        except Exception:
+            pass
 
         # Footer content
         footer_content = ttk.Frame(footer_frame, style="Modern.TFrame")
-        footer_content.pack(fill=tk.X)
+        footer_content.grid(row=1, column=0, sticky="ew")
+        footer_content.grid_columnconfigure(0, weight=1)
+        footer_content.grid_columnconfigure(1, weight=0)
 
         # Left side - Info
         info_frame = ttk.Frame(footer_content, style="Modern.TFrame")
-        info_frame.pack(side=tk.LEFT, anchor=tk.W)
+        info_frame.grid(row=0, column=0, sticky="w")
 
         info_text = "💡 Tip: PIPs stay on top, can be moved by dragging, and resized by dragging edges/corners"
-        info_label = ttk.Label(
+        self._footer_info_label = ttk.Label(
             info_frame,
             text=info_text,
             style="ModernText.TLabel",
             foreground=self.colors["text_secondary"],
         )
-        info_label.pack(anchor=tk.W)
+        self._footer_info_label.grid(row=0, column=0, sticky="w")
 
         # Right side - Actions
         actions_frame = ttk.Frame(footer_content, style="Modern.TFrame")
-        actions_frame.pack(side=tk.RIGHT, anchor=tk.E)
+        actions_frame.grid(row=0, column=1, sticky="e")
 
         refresh_button = ModernButton(
             actions_frame, text="Refresh All", command=self.refresh_all_sources, style_type="secondary"
@@ -1041,6 +1092,72 @@ class InfinitePIPModernUI:
                 style_type="secondary",
             )
             minimize_button.pack(side=tk.RIGHT, padx=(10, 0))
+
+    def _on_root_resize(self, _event=None):
+        """Keep long labels readable on resize (prevents clipping/overlap)."""
+        try:
+            w = max(1, self.root.winfo_width())
+        except Exception:
+            return
+
+        # Header subtitle wraps sooner to avoid running into the status column.
+        if hasattr(self, "_header_subtitle_label"):
+            try:
+                self._header_subtitle_label.configure(wraplength=max(300, int(w * 0.55)))
+            except Exception:
+                pass
+
+        # Footer tip wraps based on available width.
+        if hasattr(self, "_footer_info_label"):
+            try:
+                self._footer_info_label.configure(wraplength=max(380, int(w * 0.60)))
+            except Exception:
+                pass
+
+    def _schedule_layout_region_fields(self, _event=None):
+        try:
+            if hasattr(self, "_region_fields_after_id") and self._region_fields_after_id:
+                self.root.after_cancel(self._region_fields_after_id)
+        except Exception:
+            pass
+        self._region_fields_after_id = self.root.after(50, self._layout_region_fields)
+
+    def _layout_region_fields(self):
+        """Responsive region input layout: 4 columns wide, 2 columns medium, 1 column narrow."""
+        if not hasattr(self, "_region_fields_container"):
+            return
+        container = self._region_fields_container
+        width = container.winfo_width()
+        if width <= 1:
+            # Not yet laid out; try later
+            try:
+                self.root.after(50, self._layout_region_fields)
+            except Exception:
+                pass
+            return
+
+        if width >= 760:
+            cols = 4
+        elif width >= 420:
+            cols = 2
+        else:
+            cols = 1
+
+        if cols != self._region_fields_columns_current:
+            # Clear existing grid placements
+            for f in self._region_field_frames:
+                f.grid_forget()
+            for c in range(0, 6):
+                container.grid_columnconfigure(c, weight=0)
+            for c in range(cols):
+                container.grid_columnconfigure(c, weight=1, uniform="region_fields")
+
+            for i, f in enumerate(self._region_field_frames):
+                r = i // cols
+                c = i % cols
+                f.grid(row=r, column=c, sticky="ew", padx=(0 if c == 0 else 14, 0), pady=(0, 12))
+
+            self._region_fields_columns_current = cols
 
     def capture_monitor_preview(self, monitor_index):
         """Capture a preview screenshot of a monitor"""
