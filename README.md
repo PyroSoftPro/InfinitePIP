@@ -55,8 +55,11 @@ python -m pip install -r requirements.txt
 ## Run
 
 ```bash
-python infinitepip_modern.py
+python infinitepip.py
 ```
+
+`infinitepip_modern.py` is still included as a compatibility shim, but `infinitepip.py`
+is the main entry file going forward.
 
 ---
 
