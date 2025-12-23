@@ -2,7 +2,7 @@
 Centralized imports / dependency availability flags.
 
 The original project was single-file and performed dependency checks at import time.
-We keep the same behavior here so `python infinitepip_modern.py` fails fast with the
+We keep the same behavior here so the entrypoint fails fast with the
 same messages when required dependencies are missing.
 """
 

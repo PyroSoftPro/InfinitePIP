@@ -58,9 +58,6 @@ python -m pip install -r requirements.txt
 python infinitepip.py
 ```
 
-`infinitepip_modern.py` is still included as a compatibility shim, but `infinitepip.py`
-is the main entry file going forward.
-
 ---
 
 ## How to use
