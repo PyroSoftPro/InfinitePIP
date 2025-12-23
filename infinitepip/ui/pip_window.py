@@ -869,3 +869,4 @@ class InfinitePIPWindow:
         self.manager.remove_pip(self)
 
 
+

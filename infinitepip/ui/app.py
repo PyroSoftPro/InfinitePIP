@@ -36,6 +36,14 @@ class InfinitePIPModernUI:
         self.is_closing = False
         self.remote_server = None
 
+        # UI references used for responsive/conditional rendering
+        self._close_all_button = None
+        self._regions_cards_container = None
+        self._regions_input_card = None
+        self._regions_preview_card = None
+        self._regions_layout_after_id = None
+        self._regions_columns_current = None
+
         # Initialize UI
         self.setup_modern_theme()
         self.setup_window()
@@ -58,19 +66,22 @@ class InfinitePIPModernUI:
 
         # Modern color palette
         self.colors = {
-            "bg_primary": "#0a0a0a",
-            "bg_secondary": "#1a1a1a",
-            "bg_card": "#1a1a1a",
-            "bg_card_hover": "#2a2a2a",
-            "bg_input": "#252525",
-            "accent_primary": "#f97316",
-            "accent_secondary": "#10b981",
-            "accent_danger": "#ef4444",
-            "text_primary": "#ffffff",
-            "text_secondary": "#a1a1aa",
-            "text_muted": "#666666",
-            "border": "#333333",
-            "shadow": "#00000040",
+            # Match TSX Tailwind palette closely
+            "bg_primary": "#030712",  # gray-950
+            "bg_secondary": "#111827",  # gray-900
+            "bg_card": "#111827",  # gray-900
+            "bg_card_hover": "#1f2937",  # gray-800
+            "bg_input": "#1f2937",  # gray-800
+            "accent_primary": "#f97316",  # orange-500
+            "accent_primary_hover": "#ea580c",  # orange-600
+            "accent_secondary": "#22c55e",  # green-500
+            "accent_danger": "#dc2626",  # red-600
+            "accent_danger_hover": "#b91c1c",  # red-700
+            "text_primary": "#f9fafb",  # near-white
+            "text_secondary": "#9ca3af",  # gray-400
+            "text_muted": "#6b7280",  # gray-500
+            "border": "#1f2937",  # gray-800
+            "border_strong": "#374151",  # gray-700
         }
 
         # Configure root window
@@ -96,14 +107,14 @@ class InfinitePIPModernUI:
             "ModernTitle.TLabel",
             font=("Segoe UI", 32, "bold"),
             background=self.colors["bg_primary"],
-            foreground=self.colors["text_primary"],
+            foreground=self.colors["accent_primary"],  # TSX title is orange
         )
 
         self.style.configure(
             "ModernSubtitle.TLabel",
             font=("Segoe UI", 16),
             background=self.colors["bg_primary"],
-            foreground=self.colors["accent_primary"],
+            foreground=self.colors["text_secondary"],
         )
 
         self.style.configure(
@@ -147,12 +158,15 @@ class InfinitePIPModernUI:
 
         self.style.map(
             "ModernPrimary.TButton",
-            background=[("active", "#ea580c"), ("pressed", "#c2410c")],
+            background=[
+                ("active", self.colors["accent_primary_hover"]),
+                ("pressed", "#c2410c"),  # orange-700-ish
+            ],
         )
 
         self.style.configure(
             "ModernSecondary.TButton",
-            background=self.colors["bg_card"],
+            background=self.colors["bg_card_hover"],  # TSX secondary buttons are gray-800
             foreground=self.colors["text_primary"],
             font=("Segoe UI", 10),
             borderwidth=1,
@@ -162,7 +176,7 @@ class InfinitePIPModernUI:
 
         self.style.map(
             "ModernSecondary.TButton",
-            background=[("active", self.colors["bg_card_hover"])],
+            background=[("active", "#374151")],  # gray-700 hover
         )
 
         self.style.configure(
@@ -184,27 +198,14 @@ class InfinitePIPModernUI:
             relief="flat",
             padding=(16, 8),
         )
-
-        # Notebook styles
-        self.style.configure(
-            "Modern.TNotebook", background=self.colors["bg_primary"], borderwidth=0
-        )
-
-        self.style.configure(
-            "Modern.TNotebook.Tab",
-            background=self.colors["bg_card"],
-            foreground=self.colors["text_secondary"],
-            padding=[16, 10],
-            font=("Segoe UI", 10),
-        )
-
         self.style.map(
-            "Modern.TNotebook.Tab",
-            background=[("selected", self.colors["accent_primary"])],
-            foreground=[("selected", "white")],
-            padding=[("selected", [30, 18])],
-            font=[("selected", ("Segoe UI", 12, "bold"))],
+            "ModernDanger.TButton",
+            background=[("active", self.colors["accent_danger_hover"])],
         )
+
+        # Notebook styles kept for any ttk internals (we use a custom tab bar)
+        self.style.configure("Modern.TNotebook", background=self.colors["bg_primary"], borderwidth=0)
+        self.style.configure("Modern.TNotebook.Tab", padding=[0, 0])
 
         # Entry styles
         self.style.configure(
@@ -387,7 +388,8 @@ class InfinitePIPModernUI:
             )
             self.remote_thread.start()
 
-            print("✓ Remote control server started on port 38474")
+            # Use ASCII-only output for maximum Windows console compatibility.
+            print("[InfinitePIP] Remote control server started on port 38474")
 
         except Exception as e:
             print(f"Warning: Could not start remote control server: {e}")
@@ -446,7 +448,7 @@ class InfinitePIPModernUI:
         self.root.grid_rowconfigure(0, weight=1)
         self.root.grid_columnconfigure(0, weight=1)
 
-        main_container = ttk.Frame(self.root, style="Modern.TFrame", padding=(32, 24))
+        main_container = ttk.Frame(self.root, style="Modern.TFrame", padding=(0, 0))
         main_container.grid(row=0, column=0, sticky="nsew")
         main_container.grid_rowconfigure(1, weight=1)
         main_container.grid_columnconfigure(0, weight=1)
@@ -455,8 +457,8 @@ class InfinitePIPModernUI:
         self.create_header(main_container)
 
         # Content area (expands)
-        content_frame = ttk.Frame(main_container, style="Modern.TFrame")
-        content_frame.grid(row=1, column=0, sticky="nsew", pady=(18, 0))
+        content_frame = tk.Frame(main_container, bg=self.colors["bg_primary"])
+        content_frame.grid(row=1, column=0, sticky="nsew")
         content_frame.grid_rowconfigure(0, weight=1)
         content_frame.grid_columnconfigure(0, weight=1)
 
@@ -470,19 +472,42 @@ class InfinitePIPModernUI:
 
     def create_header(self, parent):
         """Create modern header with title and status"""
-        header_frame = ttk.Frame(parent, style="Modern.TFrame")
-        header_frame.grid(row=0, column=0, sticky="ew", pady=(0, 18))
+        header_outer = tk.Frame(parent, bg=self.colors["bg_secondary"])
+        header_outer.grid(row=0, column=0, sticky="ew")
+        header_outer.grid_columnconfigure(0, weight=1)
+
+        # Header content
+        header_frame = tk.Frame(header_outer, bg=self.colors["bg_secondary"])
+        header_frame.grid(row=0, column=0, sticky="ew", padx=24, pady=16)
         header_frame.grid_columnconfigure(0, weight=1)
         header_frame.grid_columnconfigure(1, weight=0)
 
+        # Bottom border line (TSX: border-b border-gray-800)
+        tk.Frame(header_outer, bg=self.colors["border"], height=1).grid(
+            row=1, column=0, sticky="ew"
+        )
+
         # Left side - Title and subtitle
-        title_section = ttk.Frame(header_frame, style="Modern.TFrame")
+        title_section = tk.Frame(header_frame, bg=self.colors["bg_secondary"])
         title_section.grid(row=0, column=0, sticky="w")
 
-        title_label = ttk.Label(
-            title_section, text="InfinitePIP", style="ModernTitle.TLabel"
+        # Icon + title (match TSX "🔥 InfinitePIP")
+        title_row = tk.Frame(title_section, bg=self.colors["bg_secondary"])
+        title_row.grid(row=0, column=0, sticky="w")
+
+        icon_label = ttk.Label(
+            title_row,
+            text="🔥",
+            font=("Segoe UI", 34),
+            background=self.colors["bg_secondary"],
+            foreground=self.colors["accent_primary"],
         )
-        title_label.grid(row=0, column=0, sticky="w")
+        icon_label.grid(row=0, column=0, sticky="w", padx=(0, 12))
+
+        title_label = ttk.Label(
+            title_row, text="InfinitePIP", style="ModernTitle.TLabel"
+        )
+        title_label.grid(row=0, column=1, sticky="w")
 
         self._header_subtitle_label = ttk.Label(
             title_section,
@@ -492,69 +517,196 @@ class InfinitePIPModernUI:
         self._header_subtitle_label.grid(row=1, column=0, sticky="w", pady=(5, 0))
 
         # Right side - Status and info
-        status_section = ttk.Frame(header_frame, style="Modern.TFrame")
+        status_section = tk.Frame(header_frame, bg=self.colors["bg_secondary"])
         status_section.grid(row=0, column=1, sticky="e")
 
-        # Active PIPs counter
-        self.status_label = ttk.Label(
-            status_section,
-            text="● Ready",
-            style="ModernText.TLabel",
-            foreground=self.colors["accent_secondary"],
-        )
-        self.status_label.grid(row=0, column=0, sticky="e")
+        # Status row: dot + label (TSX: small colored dot + text)
+        status_row = tk.Frame(status_section, bg=self.colors["bg_secondary"])
+        status_row.grid(row=0, column=0, sticky="e")
 
-        self.pips_counter = ttk.Label(
-            status_section,
-            text="0 Active PIPs",
-            style="ModernText.TLabel",
-            foreground=self.colors["text_secondary"],
+        self._status_dot = tk.Canvas(
+            status_row,
+            width=10,
+            height=10,
+            bg=self.colors["bg_secondary"],
+            highlightthickness=0,
         )
-        self.pips_counter.grid(row=1, column=0, sticky="e", pady=(5, 0))
+        self._status_dot.grid(row=0, column=0, sticky="e", padx=(0, 8))
+        self._status_dot_id = self._status_dot.create_oval(
+            1, 1, 9, 9, fill=self.colors["accent_secondary"], outline=""
+        )
+
+        self.status_label = tk.Label(
+            status_row,
+            text="Ready",
+            bg=self.colors["bg_secondary"],
+            fg=self.colors["text_primary"],
+            font=("Segoe UI", 10, "bold"),
+        )
+        self.status_label.grid(row=0, column=1, sticky="e")
+
+        # Counter row: orange number + gray text (TSX: number orange-500)
+        counter_row = tk.Frame(status_section, bg=self.colors["bg_secondary"])
+        counter_row.grid(row=1, column=0, sticky="e", pady=(6, 0))
+
+        self._pips_counter_number = tk.Label(
+            counter_row,
+            text="0",
+            bg=self.colors["bg_secondary"],
+            fg=self.colors["accent_primary"],
+            font=("Segoe UI", 10, "bold"),
+        )
+        self._pips_counter_number.grid(row=0, column=0, sticky="e")
+
+        self.pips_counter = tk.Label(
+            counter_row,
+            text=" Active PIPs",
+            bg=self.colors["bg_secondary"],
+            fg=self.colors["text_secondary"],
+            font=("Segoe UI", 10),
+        )
+        self.pips_counter.grid(row=0, column=1, sticky="e")
 
     def create_modern_tabs(self, parent):
-        """Create modern tabbed interface with proper scrolling"""
-        # Create notebook
-        self.notebook = ttk.Notebook(parent, style="Modern.TNotebook")
-        self.notebook.grid(row=0, column=0, sticky="nsew")
+        """Create TSX-style tab bar + content stack (custom, not ttk.Notebook)."""
+        container = tk.Frame(parent, bg=self.colors["bg_primary"])
+        container.grid(row=0, column=0, sticky="nsew")
+        container.grid_rowconfigure(1, weight=1)
+        container.grid_columnconfigure(0, weight=1)
 
-        # Create tabs
-        self.create_monitors_tab()
-        self.create_windows_tab()
-        self.create_regions_tab()
-        self.create_active_pips_tab()
+        # Tab bar (TSX: bg-gray-900 with bottom border)
+        tabbar_outer = tk.Frame(container, bg=self.colors["bg_secondary"])
+        tabbar_outer.grid(row=0, column=0, sticky="ew")
+        tabbar_outer.grid_columnconfigure(0, weight=1)
 
-    def create_monitors_tab(self):
+        tabbar = tk.Frame(tabbar_outer, bg=self.colors["bg_secondary"])
+        tabbar.grid(row=0, column=0, sticky="ew", padx=24)
+
+        tk.Frame(tabbar_outer, bg=self.colors["border"], height=1).grid(
+            row=1, column=0, sticky="ew"
+        )
+
+        # Content stack
+        self._tab_stack = tk.Frame(container, bg=self.colors["bg_primary"])
+        self._tab_stack.grid(row=1, column=0, sticky="nsew")
+        self._tab_stack.grid_rowconfigure(0, weight=1)
+        self._tab_stack.grid_columnconfigure(0, weight=1)
+
+        # Build tab pages
+        self._tabs = {}
+        self._tab_buttons = {}
+        self._tab_underlines = {}
+
+        self._tabs["monitors"] = self.create_monitors_tab(self._tab_stack)
+        self._tabs["windows"] = self.create_windows_tab(self._tab_stack)
+        self._tabs["regions"] = self.create_regions_tab(self._tab_stack)
+        self._tabs["active"] = self.create_active_pips_tab(self._tab_stack)
+
+        # Create tab buttons
+        tab_defs = [
+            ("monitors", "Monitors"),
+            ("windows", "Windows"),
+            ("regions", "Regions"),
+            ("active", "Active PIPs"),
+        ]
+
+        for i, (tab_id, label) in enumerate(tab_defs):
+            btn = tk.Label(
+                tabbar,
+                text=label,
+                bg=self.colors["bg_secondary"],
+                fg=self.colors["text_secondary"],
+                font=("Segoe UI", 10),
+                padx=18,
+                pady=10,
+                cursor="hand2",
+            )
+            btn.grid(row=0, column=i, sticky="w")
+            btn.bind("<Button-1>", lambda _e, t=tab_id: self.show_tab(t), add="+")
+
+            underline = tk.Frame(tabbar, bg=self.colors["bg_secondary"], height=2, width=1)
+            underline.grid(row=1, column=i, sticky="ew")
+
+            self._tab_buttons[tab_id] = btn
+            self._tab_underlines[tab_id] = underline
+
+        # Default tab
+        self._active_tab = "monitors"
+        self.show_tab(self._active_tab)
+
+    def show_tab(self, tab_id: str) -> None:
+        """Show a tab page and update the TSX-like tab styling."""
+        if not hasattr(self, "_tabs") or tab_id not in self._tabs:
+            return
+
+        self._active_tab = tab_id
+
+        # Raise content
+        frame = self._tabs[tab_id]
+        try:
+            frame.tkraise()
+        except Exception:
+            pass
+
+        # Update tab visuals
+        for tid, btn in getattr(self, "_tab_buttons", {}).items():
+            is_active = tid == tab_id
+            try:
+                btn.configure(
+                    fg=self.colors["accent_primary"] if is_active else self.colors["text_secondary"],
+                    font=("Segoe UI", 10, "bold") if is_active else ("Segoe UI", 10),
+                )
+            except Exception:
+                pass
+            ul = self._tab_underlines.get(tid)
+            if ul is not None:
+                try:
+                    ul.configure(bg=self.colors["accent_primary"] if is_active else self.colors["bg_secondary"])
+                except Exception:
+                    pass
+
+    def create_monitors_tab(self, parent):
         """Create monitors tab with scrollable content"""
         # Main frame for monitors
-        monitors_frame = ttk.Frame(self.notebook, style="Modern.TFrame")
-        self.notebook.add(monitors_frame, text="🖥️ Monitors")
+        monitors_frame = tk.Frame(parent, bg=self.colors["bg_primary"])
+        monitors_frame.grid(row=0, column=0, sticky="nsew")
+        monitors_frame.grid_rowconfigure(0, weight=1)
+        monitors_frame.grid_columnconfigure(0, weight=1)
 
         # Add padding frame
-        padded_frame = ttk.Frame(monitors_frame, style="Modern.TFrame")
-        padded_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        padded_frame = tk.Frame(monitors_frame, bg=self.colors["bg_primary"])
+        padded_frame.pack(fill=tk.BOTH, expand=True, padx=24, pady=24)
 
         # Section title
-        title_label = ttk.Label(
-            padded_frame, text="Available Monitors", style="SectionTitle.TLabel"
+        title_label = tk.Label(
+            padded_frame,
+            text="Available Monitors",
+            bg=self.colors["bg_primary"],
+            fg=self.colors["text_primary"],
+            font=("Segoe UI", 18, "bold"),
         )
-        title_label.pack(anchor=tk.W, pady=(0, 10))
+        title_label.pack(anchor=tk.W, pady=(0, 6))
 
-        subtitle_label = ttk.Label(
+        subtitle_label = tk.Label(
             padded_frame,
             text="Create picture-in-picture windows from any connected monitor",
-            style="ModernText.TLabel",
-            foreground=self.colors["text_secondary"],
+            bg=self.colors["bg_primary"],
+            fg=self.colors["text_secondary"],
+            font=("Segoe UI", 10),
         )
-        subtitle_label.pack(anchor=tk.W, pady=(0, 20))
+        subtitle_label.pack(anchor=tk.W, pady=(0, 18))
 
         # Create scrollable area
-        scrollable_area = ModernScrollableFrame(padded_frame, style="Modern.TFrame")
+        scrollable_area = ModernScrollableFrame(padded_frame)
         scrollable_area.pack(fill=tk.BOTH, expand=True)
         scrollable_area.configure_canvas(background=self.colors["bg_primary"])
+        try:
+            scrollable_area.scrollable_frame.configure(style="Modern.TFrame")
+        except Exception:
+            pass
 
         # Create grid container
-        grid_container = ttk.Frame(scrollable_area.scrollable_frame, style="Modern.TFrame")
+        grid_container = tk.Frame(scrollable_area.scrollable_frame, bg=self.colors["bg_primary"])
         grid_container.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
         # Build cards once; grid them responsively based on available width.
@@ -572,28 +724,35 @@ class InfinitePIPModernUI:
         scrollable_area.canvas.bind("<Configure>", self._schedule_layout_monitor_cards, add="+")
         grid_container.bind("<Configure>", self._schedule_layout_monitor_cards, add="+")
 
+        return monitors_frame
+
     def _create_monitor_card_widget(self, parent, monitor, index):
         """Create a modern monitor card widget (positioned later by responsive grid)."""
-        card_container = ttk.Frame(
+        # Use ModernCard for exact Tailwind-like border behavior.
+        card_container = ModernCard(
             parent,
-            style="ModernCard.TFrame",
-            relief="flat",
-            borderwidth=1,
-            padding="15",
+            padding=16,
+            bg=self.colors["bg_card"],
+            border=self.colors["border"],
+            border_hover=self.colors["accent_primary"],
         )
 
         # Monitor icon and number (large)
-        icon_frame = ttk.Frame(card_container, style="ModernCard.TFrame")
-        icon_frame.pack(pady=(0, 10))
+        icon_frame = tk.Frame(card_container.content_frame, bg=self.colors["bg_card"])
+        icon_frame.pack(pady=(0, 10), fill=tk.X)
 
         # Large monitor icon
-        icon_label = ttk.Label(
-            icon_frame, text="🖥️", font=("Segoe UI", 32), style="CardTitle.TLabel"
+        icon_label = tk.Label(
+            icon_frame,
+            text="🖥️",
+            font=("Segoe UI", 28),
+            bg=self.colors["bg_card"],
+            fg=self.colors["accent_primary"],
         )
         icon_label.pack()
 
         # Preview image
-        preview_frame = ttk.Frame(icon_frame, style="ModernCard.TFrame")
+        preview_frame = tk.Frame(icon_frame, bg=self.colors["bg_card"])
         preview_frame.pack(pady=(5, 0))
 
         try:
@@ -604,24 +763,24 @@ class InfinitePIPModernUI:
                 preview_image = preview_image.resize((120, 68), Image.Resampling.LANCZOS)
                 preview_photo = ImageTk.PhotoImage(preview_image)
 
-                preview_label = ttk.Label(
-                    preview_frame, image=preview_photo, style="CardTitle.TLabel"
-                )
+                preview_label = tk.Label(preview_frame, image=preview_photo, bg=self.colors["bg_card"])
                 preview_label.image = preview_photo  # Keep a reference
                 preview_label.pack()
             else:
-                ttk.Label(
+                tk.Label(
                     preview_frame,
                     text="Preview unavailable",
                     font=("Segoe UI", 8),
-                    style="CardSubtitle.TLabel",
+                    bg=self.colors["bg_card"],
+                    fg=self.colors["text_muted"],
                 ).pack()
         except Exception:
-            ttk.Label(
+            tk.Label(
                 preview_frame,
                 text="Preview unavailable",
                 font=("Segoe UI", 8),
-                style="CardSubtitle.TLabel",
+                bg=self.colors["bg_card"],
+                fg=self.colors["text_muted"],
             ).pack()
 
         # Monitor number
@@ -630,45 +789,52 @@ class InfinitePIPModernUI:
         if monitor.is_primary:
             num_text += " (Primary)"
 
-        num_label = ttk.Label(
+        num_label = tk.Label(
             icon_frame,
             text=num_text,
             font=("Segoe UI", 12, "bold"),
-            style="CardTitle.TLabel",
+            bg=self.colors["bg_card"],
+            fg=self.colors["text_primary"],
         )
         num_label.pack(pady=(5, 0))
 
         # Monitor specs (compact)
-        specs_frame = ttk.Frame(card_container, style="ModernCard.TFrame")
-        specs_frame.pack(pady=(0, 10))
+        specs_frame = tk.Frame(card_container.content_frame, bg=self.colors["bg_card"])
+        specs_frame.pack(pady=(0, 10), fill=tk.X)
 
         # Resolution (main info)
-        resolution_label = ttk.Label(
+        resolution_label = tk.Label(
             specs_frame,
-            text=f"{monitor.width}×{monitor.height}",
-            font=("Segoe UI", 11, "bold"),
-            style="CardSubtitle.TLabel",
+            text=f"Resolution: {monitor.width}×{monitor.height}",
+            font=("Segoe UI", 10),
+            bg=self.colors["bg_card"],
+            fg=self.colors["text_secondary"],
         )
         resolution_label.pack()
 
         # Aspect ratio
         aspect_ratio = round(monitor.width / monitor.height, 2)
-        aspect_label = ttk.Label(
-            specs_frame, text=f"{aspect_ratio}:1", style="CardSubtitle.TLabel"
+        aspect_label = tk.Label(
+            specs_frame,
+            text=f"Aspect Ratio: {aspect_ratio}:1",
+            font=("Segoe UI", 10),
+            bg=self.colors["bg_card"],
+            fg=self.colors["text_secondary"],
         )
         aspect_label.pack()
 
         # Position (smaller)
-        position_label = ttk.Label(
+        position_label = tk.Label(
             specs_frame,
-            text=f"({monitor.x}, {monitor.y})",
-            font=("Segoe UI", 9),
-            style="CardSubtitle.TLabel",
+            text=f"Position: ({monitor.x}, {monitor.y})",
+            font=("Segoe UI", 10),
+            bg=self.colors["bg_card"],
+            fg=self.colors["text_secondary"],
         )
         position_label.pack(pady=(2, 0))
 
         # Action button (full width)
-        button_frame = ttk.Frame(card_container, style="ModernCard.TFrame")
+        button_frame = tk.Frame(card_container.content_frame, bg=self.colors["bg_card"])
         button_frame.pack(fill=tk.X)
 
         create_button = ModernButton(
@@ -717,21 +883,27 @@ class InfinitePIPModernUI:
             col = i % columns
             card.grid(row=row, column=col, sticky="nsew", padx=8, pady=8)
 
-    def create_windows_tab(self):
+    def create_windows_tab(self, parent):
         """Create windows tab with scrollable content"""
-        windows_frame = ttk.Frame(self.notebook, style="Modern.TFrame")
-        self.notebook.add(windows_frame, text="🪟 Windows")
+        windows_frame = tk.Frame(parent, bg=self.colors["bg_primary"])
+        windows_frame.grid(row=0, column=0, sticky="nsew")
+        windows_frame.grid_rowconfigure(0, weight=1)
+        windows_frame.grid_columnconfigure(0, weight=1)
 
         # Add padding frame
-        padded_frame = ttk.Frame(windows_frame, style="Modern.TFrame")
-        padded_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        padded_frame = tk.Frame(windows_frame, bg=self.colors["bg_primary"])
+        padded_frame.pack(fill=tk.BOTH, expand=True, padx=24, pady=24)
 
         # Section header
-        header_frame = ttk.Frame(padded_frame, style="Modern.TFrame")
+        header_frame = tk.Frame(padded_frame, bg=self.colors["bg_primary"])
         header_frame.pack(fill=tk.X, pady=(0, 20))
 
-        title_label = ttk.Label(
-            header_frame, text="Application Windows", style="SectionTitle.TLabel"
+        title_label = tk.Label(
+            header_frame,
+            text="Application Windows",
+            bg=self.colors["bg_primary"],
+            fg=self.colors["text_primary"],
+            font=("Segoe UI", 18, "bold"),
         )
         title_label.pack(side=tk.LEFT, anchor=tk.W)
 
@@ -740,22 +912,24 @@ class InfinitePIPModernUI:
         )
         refresh_button.pack(side=tk.RIGHT)
 
-        subtitle_label = ttk.Label(
+        subtitle_label = tk.Label(
             padded_frame,
             text="Capture and display content from any application window",
-            style="ModernText.TLabel",
-            foreground=self.colors["text_secondary"],
+            bg=self.colors["bg_primary"],
+            fg=self.colors["text_secondary"],
+            font=("Segoe UI", 10),
         )
         subtitle_label.pack(anchor=tk.W, pady=(0, 20))
 
         # Create scrollable area
-        scrollable_area = ModernScrollableFrame(padded_frame, style="Modern.TFrame")
+        scrollable_area = ModernScrollableFrame(padded_frame)
         scrollable_area.pack(fill=tk.BOTH, expand=True)
         scrollable_area.configure_canvas(background=self.colors["bg_primary"])
 
         # Window list container
         self.windows_container = scrollable_area.scrollable_frame
         self.update_windows_list()
+        return windows_frame
 
     def update_windows_list(self):
         """Update the windows list with current windows"""
@@ -779,11 +953,17 @@ class InfinitePIPModernUI:
 
     def create_window_card(self, parent, window, index):
         """Create a modern window card"""
-        card = ModernCard(parent, padding="25")
+        card = ModernCard(
+            parent,
+            padding=16,
+            bg=self.colors["bg_card"],
+            border=self.colors["border"],
+            border_hover=self.colors["accent_primary"],
+        )
         card.pack(fill=tk.X, pady=8, padx=5)
 
         # Window title and details
-        title_frame = ttk.Frame(card.content_frame, style="ModernCard.TFrame")
+        title_frame = tk.Frame(card.content_frame, bg=self.colors["bg_card"])
         title_frame.pack(fill=tk.X, pady=(0, 15))
 
         # Window icon and title
@@ -791,13 +971,17 @@ class InfinitePIPModernUI:
         if len(window_title) > 60:
             window_title = window_title[:60] + "..."
 
-        title_label = ttk.Label(
-            title_frame, text=f"🪟 {window_title}", style="CardTitle.TLabel"
+        title_label = tk.Label(
+            title_frame,
+            text=f"{window_title}",
+            bg=self.colors["bg_card"],
+            fg=self.colors["text_primary"],
+            font=("Segoe UI", 12, "bold"),
         )
         title_label.pack(anchor=tk.W)
 
         # Preview image
-        preview_frame = ttk.Frame(title_frame, style="ModernCard.TFrame")
+        preview_frame = tk.Frame(title_frame, bg=self.colors["bg_card"])
         preview_frame.pack(anchor=tk.W, pady=(8, 0))
 
         try:
@@ -808,46 +992,43 @@ class InfinitePIPModernUI:
                 preview_image = preview_image.resize((120, 68), Image.Resampling.LANCZOS)
                 preview_photo = ImageTk.PhotoImage(preview_image)
 
-                preview_label = ttk.Label(
-                    preview_frame, image=preview_photo, style="CardTitle.TLabel"
-                )
+                preview_label = tk.Label(preview_frame, image=preview_photo, bg=self.colors["bg_card"])
                 preview_label.image = preview_photo  # Keep a reference
                 preview_label.pack()
             else:
-                ttk.Label(
+                tk.Label(
                     preview_frame,
                     text="Preview unavailable",
                     font=("Segoe UI", 8),
-                    style="CardSubtitle.TLabel",
+                    bg=self.colors["bg_card"],
+                    fg=self.colors["text_muted"],
                 ).pack()
         except Exception:
-            ttk.Label(
+            tk.Label(
                 preview_frame,
                 text="Preview unavailable",
                 font=("Segoe UI", 8),
-                style="CardSubtitle.TLabel",
+                bg=self.colors["bg_card"],
+                fg=self.colors["text_muted"],
             ).pack()
 
         # Window specs
-        specs_frame = ttk.Frame(card.content_frame, style="ModernCard.TFrame")
+        specs_frame = tk.Frame(card.content_frame, bg=self.colors["bg_card"])
         specs_frame.pack(fill=tk.X, pady=(0, 15))
 
         if "bbox" in window:
             bbox = window["bbox"]
-            size_label = ttk.Label(
-                specs_frame, text=f"Size: {bbox[2]}×{bbox[3]}", style="CardSubtitle.TLabel"
+            size_label = tk.Label(
+                specs_frame,
+                text=f"Size: {bbox[2]}×{bbox[3]} • Position: ({bbox[0]}, {bbox[1]})",
+                bg=self.colors["bg_card"],
+                fg=self.colors["text_secondary"],
+                font=("Segoe UI", 10),
             )
             size_label.pack(anchor=tk.W)
 
-            position_label = ttk.Label(
-                specs_frame,
-                text=f"Position: ({bbox[0]}, {bbox[1]})",
-                style="CardSubtitle.TLabel",
-            )
-            position_label.pack(anchor=tk.W, pady=(2, 0))
-
         # Action button
-        button_frame = ttk.Frame(card.content_frame, style="ModernCard.TFrame")
+        button_frame = tk.Frame(card.content_frame, bg=self.colors["bg_card"])
         button_frame.pack(anchor=tk.W)
 
         create_button = ModernButton(
@@ -858,41 +1039,68 @@ class InfinitePIPModernUI:
         )
         create_button.pack(side=tk.LEFT)
 
-    def create_regions_tab(self):
+    def create_regions_tab(self, parent):
         """Create regions tab with custom region definition"""
-        regions_frame = ttk.Frame(self.notebook, style="Modern.TFrame")
-        self.notebook.add(regions_frame, text="📐 Regions")
+        regions_frame = tk.Frame(parent, bg=self.colors["bg_primary"])
+        regions_frame.grid(row=0, column=0, sticky="nsew")
+        regions_frame.grid_rowconfigure(0, weight=1)
+        regions_frame.grid_columnconfigure(0, weight=1)
 
         # Add padding frame
-        padded_frame = ttk.Frame(regions_frame, style="Modern.TFrame")
-        padded_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        padded_frame = tk.Frame(regions_frame, bg=self.colors["bg_primary"])
+        padded_frame.pack(fill=tk.BOTH, expand=True, padx=24, pady=24)
 
         # Section title
-        title_label = ttk.Label(
-            padded_frame, text="Custom Screen Regions", style="SectionTitle.TLabel"
+        title_label = tk.Label(
+            padded_frame,
+            text="Custom Screen Regions",
+            bg=self.colors["bg_primary"],
+            fg=self.colors["text_primary"],
+            font=("Segoe UI", 18, "bold"),
         )
-        title_label.pack(anchor=tk.W, pady=(0, 10))
+        title_label.pack(anchor=tk.W, pady=(0, 6))
 
-        subtitle_label = ttk.Label(
+        subtitle_label = tk.Label(
             padded_frame,
             text="Define custom screen areas to capture",
-            style="ModernText.TLabel",
-            foreground=self.colors["text_secondary"],
+            bg=self.colors["bg_primary"],
+            fg=self.colors["text_secondary"],
+            font=("Segoe UI", 10),
         )
-        subtitle_label.pack(anchor=tk.W, pady=(0, 30))
+        subtitle_label.pack(anchor=tk.W, pady=(0, 18))
+
+        # Two-column layout (TSX: config + preview side-by-side on large screens)
+        cards_container = tk.Frame(padded_frame, bg=self.colors["bg_primary"])
+        cards_container.pack(fill=tk.BOTH, expand=True)
+        cards_container.grid_columnconfigure(0, weight=1, uniform="regions")
+        cards_container.grid_columnconfigure(1, weight=1, uniform="regions")
+
+        self._regions_cards_container = cards_container
 
         # Create input card
-        input_card = ModernCard(padded_frame, padding="30")
-        input_card.pack(fill=tk.X, pady=10)
+        input_card = ModernCard(
+            cards_container,
+            padding=16,
+            bg=self.colors["bg_card"],
+            border=self.colors["border"],
+            border_hover=self.colors["accent_primary"],
+        )
+        self._regions_input_card = input_card
 
         # Responsive input grid (reflows on narrow widths)
-        self._region_fields_container = ttk.Frame(input_card.content_frame, style="ModernCard.TFrame")
+        self._region_fields_container = tk.Frame(input_card.content_frame, bg=self.colors["bg_card"])
         self._region_fields_container.pack(fill=tk.X)
         self._region_field_frames = []
 
         def _make_field(label: str, default: str):
-            frame = ttk.Frame(self._region_fields_container, style="ModernCard.TFrame")
-            ttk.Label(frame, text=label, style="CardSubtitle.TLabel").pack(anchor=tk.W)
+            frame = tk.Frame(self._region_fields_container, bg=self.colors["bg_card"])
+            tk.Label(
+                frame,
+                text=label,
+                bg=self.colors["bg_card"],
+                fg=self.colors["text_secondary"],
+                font=("Segoe UI", 10),
+            ).pack(anchor=tk.W)
             entry = ttk.Entry(frame, width=1, style="Modern.TEntry")
             entry.pack(fill=tk.X, expand=True, pady=(5, 0))
             entry.insert(0, default)
@@ -909,21 +1117,29 @@ class InfinitePIPModernUI:
         self._region_fields_container.bind("<Configure>", self._schedule_layout_region_fields, add="+")
 
         # Preview section
-        preview_card = ModernCard(padded_frame, padding="30")
-        preview_card.pack(fill=tk.X, pady=20)
+        preview_card = ModernCard(
+            cards_container,
+            padding=16,
+            bg=self.colors["bg_card"],
+            border=self.colors["border"],
+            border_hover=self.colors["accent_primary"],
+        )
+        self._regions_preview_card = preview_card
 
-        ttk.Label(
-            preview_card.content_frame, text="📷 Region Preview", style="CardTitle.TLabel"
+        tk.Label(
+            preview_card.content_frame,
+            text="📷 Region Preview",
+            bg=self.colors["bg_card"],
+            fg=self.colors["text_primary"],
+            font=("Segoe UI", 12, "bold"),
         ).pack(anchor=tk.W)
 
         # Preview image container
-        self.region_preview_container = ttk.Frame(
-            preview_card.content_frame, style="ModernCard.TFrame"
-        )
+        self.region_preview_container = tk.Frame(preview_card.content_frame, bg=self.colors["bg_card"])
         self.region_preview_container.pack(anchor=tk.W, pady=(15, 0))
 
         # Preview button
-        preview_button_frame = ttk.Frame(preview_card.content_frame, style="ModernCard.TFrame")
+        preview_button_frame = tk.Frame(preview_card.content_frame, bg=self.colors["bg_card"])
         preview_button_frame.pack(anchor=tk.W, pady=(15, 0))
 
         preview_button = ModernButton(
@@ -935,7 +1151,7 @@ class InfinitePIPModernUI:
         preview_button.pack(side=tk.LEFT)
 
         # Create button
-        button_frame = ttk.Frame(input_card.content_frame, style="ModernCard.TFrame")
+        button_frame = tk.Frame(input_card.content_frame, bg=self.colors["bg_card"])
         button_frame.pack(anchor=tk.W, pady=(20, 0))
 
         create_button = ModernButton(
@@ -943,21 +1159,32 @@ class InfinitePIPModernUI:
         )
         create_button.pack(side=tk.LEFT)
 
-    def create_active_pips_tab(self):
+        # Initial responsive placement + relayout on resize
+        self._layout_regions_cards()
+        cards_container.bind("<Configure>", self._schedule_layout_regions_cards, add="+")
+        return regions_frame
+
+    def create_active_pips_tab(self, parent):
         """Create active PIPs management tab"""
-        active_frame = ttk.Frame(self.notebook, style="Modern.TFrame")
-        self.notebook.add(active_frame, text="🎯 Active PIPs")
+        active_frame = tk.Frame(parent, bg=self.colors["bg_primary"])
+        active_frame.grid(row=0, column=0, sticky="nsew")
+        active_frame.grid_rowconfigure(0, weight=1)
+        active_frame.grid_columnconfigure(0, weight=1)
 
         # Add padding frame
-        padded_frame = ttk.Frame(active_frame, style="Modern.TFrame")
-        padded_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        padded_frame = tk.Frame(active_frame, bg=self.colors["bg_primary"])
+        padded_frame.pack(fill=tk.BOTH, expand=True, padx=24, pady=24)
 
         # Section header
-        header_frame = ttk.Frame(padded_frame, style="Modern.TFrame")
+        header_frame = tk.Frame(padded_frame, bg=self.colors["bg_primary"])
         header_frame.pack(fill=tk.X, pady=(0, 20))
 
-        title_label = ttk.Label(
-            header_frame, text="Active PIP Windows", style="SectionTitle.TLabel"
+        title_label = tk.Label(
+            header_frame,
+            text="Active PIP Windows",
+            bg=self.colors["bg_primary"],
+            fg=self.colors["text_primary"],
+            font=("Segoe UI", 18, "bold"),
         )
         title_label.pack(side=tk.LEFT, anchor=tk.W)
 
@@ -965,23 +1192,26 @@ class InfinitePIPModernUI:
             header_frame, text="Close All", command=self.close_all_pips, style_type="danger"
         )
         close_all_button.pack(side=tk.RIGHT)
+        self._close_all_button = close_all_button
 
-        subtitle_label = ttk.Label(
+        subtitle_label = tk.Label(
             padded_frame,
             text="Manage all active picture-in-picture windows",
-            style="ModernText.TLabel",
-            foreground=self.colors["text_secondary"],
+            bg=self.colors["bg_primary"],
+            fg=self.colors["text_secondary"],
+            font=("Segoe UI", 10),
         )
         subtitle_label.pack(anchor=tk.W, pady=(0, 20))
 
         # Create scrollable area
-        scrollable_area = ModernScrollableFrame(padded_frame, style="Modern.TFrame")
+        scrollable_area = ModernScrollableFrame(padded_frame)
         scrollable_area.pack(fill=tk.BOTH, expand=True)
         scrollable_area.configure_canvas(background=self.colors["bg_primary"])
 
         # Active PIPs container
         self.active_pips_container = scrollable_area.scrollable_frame
         self.update_active_pips_list()
+        return active_frame
 
     def update_active_pips_list(self):
         """Update the active PIPs list"""
@@ -997,41 +1227,66 @@ class InfinitePIPModernUI:
                 foreground=self.colors["text_muted"],
             )
             no_pips_label.pack(pady=20)
+            self._update_close_all_visibility()
             return
 
         # Create PIP cards
         for i, pip in enumerate(self.active_pips):
             self.create_pip_card(self.active_pips_container, pip, i)
 
+        self._update_close_all_visibility()
+
     def create_pip_card(self, parent, pip, index):
         """Create a card for an active PIP"""
-        card = ModernCard(parent, padding="25")
+        card = ModernCard(
+            parent,
+            padding=16,
+            bg=self.colors["bg_card"],
+            border=self.colors["border"],
+            border_hover=self.colors["accent_primary"],
+        )
         card.pack(fill=tk.X, pady=8, padx=5)
 
         # PIP title and details
-        title_frame = ttk.Frame(card.content_frame, style="ModernCard.TFrame")
+        title_frame = tk.Frame(card.content_frame, bg=self.colors["bg_card"])
         title_frame.pack(fill=tk.X, pady=(0, 15))
 
         pip_title = pip.get_source_name()
-        title_label = ttk.Label(title_frame, text=f"🎯 {pip_title}", style="CardTitle.TLabel")
+        title_label = tk.Label(
+            title_frame,
+            text=pip_title,
+            bg=self.colors["bg_card"],
+            fg=self.colors["text_primary"],
+            font=("Segoe UI", 12, "bold"),
+        )
         title_label.pack(anchor=tk.W)
 
         # PIP specs
-        specs_frame = ttk.Frame(card.content_frame, style="ModernCard.TFrame")
+        specs_frame = tk.Frame(card.content_frame, bg=self.colors["bg_card"])
         specs_frame.pack(fill=tk.X, pady=(0, 15))
 
-        source_type_label = ttk.Label(
-            specs_frame, text=f"Source: {pip.source_type.title()}", style="CardSubtitle.TLabel"
+        source_type_label = tk.Label(
+            specs_frame,
+            text=f"Source Type: {pip.source_type}",
+            bg=self.colors["bg_card"],
+            fg=self.colors["text_secondary"],
+            font=("Segoe UI", 10),
         )
         source_type_label.pack(anchor=tk.W)
 
         if pip.window and pip.window.winfo_exists():
             size_text = f"Size: {pip.window.winfo_width()}×{pip.window.winfo_height()}"
-            size_label = ttk.Label(specs_frame, text=size_text, style="CardSubtitle.TLabel")
+            size_label = tk.Label(
+                specs_frame,
+                text=size_text,
+                bg=self.colors["bg_card"],
+                fg=self.colors["text_secondary"],
+                font=("Segoe UI", 10),
+            )
             size_label.pack(anchor=tk.W, pady=(2, 0))
 
         # Action button
-        button_frame = ttk.Frame(card.content_frame, style="ModernCard.TFrame")
+        button_frame = tk.Frame(card.content_frame, bg=self.colors["bg_card"])
         button_frame.pack(anchor=tk.W)
 
         close_button = ModernButton(
@@ -1041,41 +1296,38 @@ class InfinitePIPModernUI:
 
     def create_footer(self, parent):
         """Create footer with actions and info"""
-        footer_frame = ttk.Frame(parent, style="Modern.TFrame")
-        footer_frame.grid(row=2, column=0, sticky="ew", pady=(18, 0))
-        footer_frame.grid_columnconfigure(0, weight=1)
-        footer_frame.grid_rowconfigure(1, weight=0)
+        footer_outer = tk.Frame(parent, bg=self.colors["bg_secondary"])
+        footer_outer.grid(row=2, column=0, sticky="ew")
+        footer_outer.grid_columnconfigure(0, weight=1)
 
-        # Separator line
-        separator = ttk.Frame(footer_frame, style="Modern.TFrame", height=1)
-        separator.grid(row=0, column=0, sticky="ew", pady=(0, 16))
-        # Give it a visible line color by using the border color as background.
-        try:
-            separator.configure(style="Modern.TFrame")
-        except Exception:
-            pass
+        # Top border line (TSX: border-t border-gray-800)
+        tk.Frame(footer_outer, bg=self.colors["border"], height=1).grid(
+            row=0, column=0, sticky="ew"
+        )
 
-        # Footer content
-        footer_content = ttk.Frame(footer_frame, style="Modern.TFrame")
-        footer_content.grid(row=1, column=0, sticky="ew")
+        footer_content = tk.Frame(footer_outer, bg=self.colors["bg_secondary"])
+        footer_content.grid(row=1, column=0, sticky="ew", padx=24, pady=14)
         footer_content.grid_columnconfigure(0, weight=1)
         footer_content.grid_columnconfigure(1, weight=0)
 
         # Left side - Info
-        info_frame = ttk.Frame(footer_content, style="Modern.TFrame")
+        info_frame = tk.Frame(footer_content, bg=self.colors["bg_secondary"])
         info_frame.grid(row=0, column=0, sticky="w")
 
-        info_text = "💡 Tip: PIPs stay on top, can be moved by dragging, and resized by dragging edges/corners"
-        self._footer_info_label = ttk.Label(
+        info_text = "💡 PIPs stay on top, can be moved by dragging, and resized by dragging edges/corners"
+        self._footer_info_label = tk.Label(
             info_frame,
             text=info_text,
-            style="ModernText.TLabel",
-            foreground=self.colors["text_secondary"],
+            bg=self.colors["bg_secondary"],
+            fg=self.colors["text_secondary"],
+            font=("Segoe UI", 9),
+            justify="left",
+            wraplength=1,
         )
         self._footer_info_label.grid(row=0, column=0, sticky="w")
 
         # Right side - Actions
-        actions_frame = ttk.Frame(footer_content, style="Modern.TFrame")
+        actions_frame = tk.Frame(footer_content, bg=self.colors["bg_secondary"])
         actions_frame.grid(row=0, column=1, sticky="e")
 
         refresh_button = ModernButton(
@@ -1556,17 +1808,102 @@ class InfinitePIPModernUI:
         """Update the status display"""
         pip_count = len(self.active_pips)
         if pip_count == 0:
-            self.status_label.configure(
-                text="● Ready", foreground=self.colors["accent_secondary"]
-            )
-            self.pips_counter.configure(text="0 Active PIPs")
+            try:
+                self._status_dot.itemconfig(self._status_dot_id, fill=self.colors["accent_secondary"])
+            except Exception:
+                pass
+            try:
+                self.status_label.configure(text="Ready")
+            except Exception:
+                pass
+            try:
+                self._pips_counter_number.configure(text="0")
+                self.pips_counter.configure(text=" Active PIPs")
+            except Exception:
+                pass
         else:
-            self.status_label.configure(
-                text="● Active", foreground=self.colors["accent_primary"]
+            try:
+                self._status_dot.itemconfig(self._status_dot_id, fill=self.colors["accent_primary"])
+            except Exception:
+                pass
+            try:
+                self.status_label.configure(text="Active")
+            except Exception:
+                pass
+            try:
+                self._pips_counter_number.configure(text=str(pip_count))
+                self.pips_counter.configure(text=" Active PIPs")
+            except Exception:
+                pass
+        self._update_close_all_visibility()
+
+    def _update_close_all_visibility(self):
+        """Show 'Close All' only when there are active PIPs (matches TSX behavior)."""
+        try:
+            if self._close_all_button is None:
+                return
+            if len(self.active_pips) > 0:
+                if not self._close_all_button.winfo_ismapped():
+                    self._close_all_button.pack(side=tk.RIGHT)
+            else:
+                if self._close_all_button.winfo_ismapped():
+                    self._close_all_button.pack_forget()
+        except Exception:
+            # Never allow UI updates to crash the app
+            pass
+
+    def _schedule_layout_regions_cards(self, _event=None):
+        """Debounce regions relayout (called on resize)."""
+        try:
+            if self._regions_layout_after_id:
+                self.root.after_cancel(self._regions_layout_after_id)
+        except Exception:
+            pass
+        self._regions_layout_after_id = self.root.after(50, self._layout_regions_cards)
+
+    def _layout_regions_cards(self):
+        """Responsive Regions layout: 2 columns when wide, 1 column when narrow."""
+        if (
+            self._regions_cards_container is None
+            or self._regions_input_card is None
+            or self._regions_preview_card is None
+        ):
+            return
+
+        container = self._regions_cards_container
+        width = container.winfo_width()
+        if width <= 1:
+            # Not yet laid out; try again shortly.
+            try:
+                self._schedule_layout_regions_cards()
+            except Exception:
+                pass
+            return
+
+        cols = 2 if width >= 900 else 1
+        if cols == self._regions_columns_current:
+            return
+
+        # Clear existing grid placements
+        self._regions_input_card.grid_forget()
+        self._regions_preview_card.grid_forget()
+
+        if cols == 2:
+            container.grid_columnconfigure(0, weight=1, uniform="regions")
+            container.grid_columnconfigure(1, weight=1, uniform="regions")
+            self._regions_input_card.grid(
+                row=0, column=0, sticky="nsew", padx=(0, 12), pady=10
             )
-            self.pips_counter.configure(
-                text=f"{pip_count} Active PIP{'s' if pip_count != 1 else ''}"
+            self._regions_preview_card.grid(
+                row=0, column=1, sticky="nsew", padx=(12, 0), pady=10
             )
+        else:
+            container.grid_columnconfigure(0, weight=1)
+            container.grid_columnconfigure(1, weight=0)
+            self._regions_input_card.grid(row=0, column=0, sticky="ew", pady=(0, 18))
+            self._regions_preview_card.grid(row=1, column=0, sticky="ew")
+
+        self._regions_columns_current = cols
 
     def remove_pip(self, pip_window):
         """Remove a PIP from the active list (called by PIP window on close)"""
