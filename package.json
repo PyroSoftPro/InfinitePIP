@@ -2,7 +2,7 @@
   "name": "infinitepip-electron",
   "private": true,
   "version": "25.12.24",
-  "description": "InfinitePIP rewritten from scratch as an Electron app",
+  "description": "InfinitePIP for Electron (default app)",
   "main": "src/main/main.js",
   "author": "",
   "license": "MIT",
