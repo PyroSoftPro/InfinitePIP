@@ -7,6 +7,11 @@ let mainWindow = null;
 /** @type {Set<BrowserWindow>} */
 const pipWindows = new Set();
 
+/** @type {Map<BrowserWindow, { pipId: number, sourceId: string, sourceName: string }>} */
+const pipMeta = new Map();
+
+let pipIdSeq = 1;
+
 // Required for older-style getUserMedia constraints (chromeMediaSource / chromeMediaSourceId),
 // and generally helps ensure desktop capture is enabled.
 app.commandLine.appendSwitch("enable-usermedia-screen-capturing");
@@ -62,12 +67,30 @@ function createPipWindow() {
   win.loadFile(path.join(__dirname, "..", "renderer", "pip.html"));
   win.on("closed", () => {
     pipWindows.delete(win);
-    if (mainWindow) mainWindow.webContents.send("pips:count", pipWindows.size);
+    pipMeta.delete(win);
+    sendPipsUpdate();
   });
 
   pipWindows.add(win);
-  if (mainWindow) mainWindow.webContents.send("pips:count", pipWindows.size);
+  sendPipsUpdate();
   return win;
+}
+
+function pipsListPayload() {
+  return [...pipMeta.values()]
+    .slice()
+    .sort((a, b) => a.pipId - b.pipId)
+    .map((p) => ({ ...p }));
+}
+
+function sendPipsUpdate() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  try {
+    mainWindow.webContents.send("pips:count", pipWindows.size);
+    mainWindow.webContents.send("pips:list", pipsListPayload());
+  } catch {
+    // ignore
+  }
 }
 
 app.whenReady().then(() => {
@@ -94,6 +117,13 @@ ipcMain.handle("pip:open", async (_evt, payload) => {
   if (!sourceId) throw new Error("sourceId is required");
 
   const pip = createPipWindow();
+  const pipId = pipIdSeq++;
+  pipMeta.set(pip, {
+    pipId,
+    sourceId: String(sourceId),
+    sourceName: String(sourceName || "Source")
+  });
+  sendPipsUpdate();
 
   // Send init after page is ready.
   pip.webContents.once("did-finish-load", () => {
@@ -106,6 +136,26 @@ ipcMain.handle("pip:open", async (_evt, payload) => {
   });
 
   return { ok: true };
+});
+
+ipcMain.handle("pips:list", async () => {
+  return pipsListPayload();
+});
+
+ipcMain.handle("pip:close", async (_evt, pipId) => {
+  const id = Number(pipId);
+  if (!Number.isFinite(id)) return { ok: false };
+  for (const [win, meta] of pipMeta.entries()) {
+    if (meta?.pipId === id) {
+      try {
+        win.close();
+        return { ok: true };
+      } catch {
+        return { ok: false };
+      }
+    }
+  }
+  return { ok: false };
 });
 
 ipcMain.handle("app:diagnostics", async () => {
@@ -177,6 +227,7 @@ ipcMain.handle("pips:closeAll", async () => {
       // ignore
     }
   }
+  sendPipsUpdate();
   return { ok: true };
 });
 

@@ -391,4 +391,43 @@ body {
   line-height: 1.4;
 }
 
+.pipList {
+  margin-top: 14px;
+  display: grid;
+  gap: 12px;
+}
+
+.pipItem {
+  border: 1px solid var(--subtle);
+  background: rgba(255, 255, 255, 0.045);
+  border-radius: 16px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pipItem .pipMeta {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.pipItem .pipTitle {
+  font-weight: 750;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pipItem .pipSub {
+  color: var(--muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 

@@ -118,14 +118,15 @@
           <div class="panelHeader">
             <div>
               <h2>Active PIP Windows</h2>
-              <p>Close all PiPs from here. (Per-PiP listing comes next.)</p>
+              <p>Manage currently open PiP windows.</p>
             </div>
             <div class="actions">
               <button class="btn danger" id="closeAllBtn2">Close All</button>
             </div>
           </div>
-          <div class="emptyState">
-            Tip: open multiple PiPs by clicking “Create PiP” on different sources.
+          <div class="pipList" id="activePipsList"></div>
+          <div class="emptyState hidden" id="activePipsEmpty">
+            No active PiPs yet. Create one from the Screens/Windows/Regions tabs.
           </div>
         </section>
       </main>

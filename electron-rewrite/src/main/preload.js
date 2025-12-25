@@ -33,6 +33,14 @@ contextBridge.exposeInMainWorld("InfinitePIP", {
     return ipcRenderer.invoke("pips:closeAll");
   },
 
+  getPipsList() {
+    return ipcRenderer.invoke("pips:list");
+  },
+
+  closePip(pipId) {
+    return ipcRenderer.invoke("pip:close", pipId);
+  },
+
   setPipAlwaysOnTop(value) {
     return ipcRenderer.invoke("pip:setAlwaysOnTop", value);
   },
@@ -57,6 +65,11 @@ contextBridge.exposeInMainWorld("InfinitePIP", {
   onPipsCount(cb) {
     ipcRenderer.on("pips:count", (_evt, count) => cb(count));
     return () => ipcRenderer.removeAllListeners("pips:count");
+  },
+
+  onPipsList(cb) {
+    ipcRenderer.on("pips:list", (_evt, list) => cb(list));
+    return () => ipcRenderer.removeAllListeners("pips:list");
   }
 });
 

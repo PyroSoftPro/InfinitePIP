@@ -14,6 +14,8 @@ const panelTitle = el("panelTitle");
 const panelHelp = el("panelHelp");
 const grid = el("sourcesGrid");
 const emptyState = el("emptyState");
+const activePipsList = el("activePipsList");
+const activePipsEmpty = el("activePipsEmpty");
 
 const refreshBtn = el("refreshBtn");
 const closeAllBtn = el("closeAllBtn");
@@ -80,6 +82,7 @@ function setTab(tab) {
     });
   } else if (tab === "active") {
     stopRegionPreview();
+    refreshActivePips();
   }
 }
 
@@ -394,6 +397,60 @@ function updateStatus(count) {
   }
 }
 
+function renderActivePips(pips) {
+  activePipsList.innerHTML = "";
+  const list = Array.isArray(pips) ? pips : [];
+  activePipsEmpty.classList.toggle("hidden", list.length > 0);
+
+  for (const p of list) {
+    const row = document.createElement("div");
+    row.className = "pipItem";
+
+    const meta = document.createElement("div");
+    meta.className = "pipMeta";
+    const title = document.createElement("div");
+    title.className = "pipTitle";
+    title.textContent = p.sourceName || "PiP";
+    const sub = document.createElement("div");
+    sub.className = "pipSub";
+    sub.textContent = `${p.sourceId || ""} • #${p.pipId ?? ""}`;
+    meta.appendChild(title);
+    meta.appendChild(sub);
+
+    const actions = document.createElement("div");
+    actions.style.display = "flex";
+    actions.style.gap = "10px";
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "btn danger";
+    closeBtn.textContent = "Close";
+    closeBtn.addEventListener("click", async () => {
+      try {
+        await InfinitePIP.closePip(p.pipId);
+      } catch (err) {
+        console.error(err);
+        alert(String(err?.message || err));
+      }
+    });
+    actions.appendChild(closeBtn);
+
+    row.appendChild(meta);
+    row.appendChild(actions);
+    activePipsList.appendChild(row);
+  }
+}
+
+async function refreshActivePips() {
+  try {
+    const list = await InfinitePIP.getPipsList();
+    renderActivePips(list);
+  } catch (err) {
+    console.error(err);
+    activePipsList.innerHTML = "";
+    activePipsEmpty.classList.remove("hidden");
+    activePipsEmpty.textContent = `Failed to load active PiPs.\n\n${String(err?.message || err)}`;
+  }
+}
+
 function escapeHtml(str) {
   return String(str)
     .replaceAll("&", "&amp;")
@@ -502,6 +559,10 @@ new ResizeObserver(() => {
 }).observe(regionPreviewCanvas);
 
 InfinitePIP.onPipsCount(updateStatus);
+InfinitePIP.onPipsList((list) => {
+  // Keep the Active tab live-updated.
+  if (currentTab === "active") renderActivePips(list);
+});
 updateStatus(0);
 
 setTab("screens");
