@@ -40,6 +40,7 @@ const regionPreviewStatus = el("regionPreviewStatus");
 const statusDot = el("statusDot");
 const statusText = el("statusText");
 const pipCount = el("pipCount");
+const appVersionEl = el("appVersion");
 
 let currentTab = "screens"; // screens | windows | regions | active
 
@@ -564,6 +565,20 @@ InfinitePIP.onPipsList((list) => {
   if (currentTab === "active") renderActivePips(list);
 });
 updateStatus(0);
+
+// Show app version from main process (keeps UI in sync with package.json version).
+Promise.resolve(InfinitePIP.getVersion?.())
+  .then((v) => {
+    if (!appVersionEl) return;
+    if (!v) {
+      appVersionEl.textContent = "";
+      return;
+    }
+    appVersionEl.textContent = `v${v}`;
+  })
+  .catch(() => {
+    if (appVersionEl) appVersionEl.textContent = "";
+  });
 
 setTab("screens");
 

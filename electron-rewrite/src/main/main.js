@@ -18,13 +18,15 @@ app.commandLine.appendSwitch("enable-usermedia-screen-capturing");
 app.commandLine.appendSwitch("allow-http-screen-capture");
 
 function createMainWindow() {
+  const iconPath = path.join(__dirname, "..", "renderer", "icon.svg");
   const win = new BrowserWindow({
     width: 1100,
     height: 760,
     minWidth: 900,
     minHeight: 600,
     backgroundColor: "#0b1220",
-    title: "InfinitePIP",
+    title: "🔥 InfinitePIP",
+    icon: iconPath,
     webPreferences: {
       // Keep main window secure; source enumeration happens via IPC in main process.
       contextIsolation: true,
@@ -43,6 +45,7 @@ function createMainWindow() {
 }
 
 function createPipWindow() {
+  const iconPath = path.join(__dirname, "..", "renderer", "icon.svg");
   const win = new BrowserWindow({
     width: 520,
     height: 320,
@@ -55,7 +58,8 @@ function createPipWindow() {
     resizable: true,
     movable: true,
     hasShadow: true,
-    title: "PiP",
+    title: "🔥 PiP",
+    icon: iconPath,
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -165,6 +169,14 @@ ipcMain.handle("app:diagnostics", async () => {
     versions: process.versions,
     hasDesktopCapturer: !!desktopCapturer?.getSources
   };
+});
+
+ipcMain.handle("app:version", async () => {
+  try {
+    return app.getVersion();
+  } catch {
+    return null;
+  }
 });
 
 ipcMain.handle("sources:get", async (_evt, options) => {

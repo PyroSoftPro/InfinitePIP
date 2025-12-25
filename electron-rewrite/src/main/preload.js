@@ -5,6 +5,10 @@ contextBridge.exposeInMainWorld("InfinitePIP", {
     return await ipcRenderer.invoke("app:diagnostics");
   },
 
+  async getVersion() {
+    return await ipcRenderer.invoke("app:version");
+  },
+
   async getSources({ types = ["screen", "window"], thumbnailSize = { width: 320, height: 200 } } = {}) {
     try {
       return await ipcRenderer.invoke("sources:get", { types, thumbnailSize, fetchWindowIcons: true });

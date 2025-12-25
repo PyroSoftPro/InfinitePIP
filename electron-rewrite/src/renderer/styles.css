@@ -50,10 +50,26 @@ body {
   letter-spacing: 0.2px;
 }
 
+.brandLogo {
+  display: inline-block;
+  margin-right: 8px;
+  transform: translateY(1px);
+}
+
 .brand p {
   margin: 6px 0 0 0;
   color: var(--muted);
   font-size: 13px;
+}
+
+.appVersion {
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--subtle);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .status {

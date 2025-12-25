@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <radialGradient id="g" cx="45%" cy="35%" r="70%">
+      <stop offset="0%" stop-color="#ffd166"/>
+      <stop offset="45%" stop-color="#ff7a18"/>
+      <stop offset="100%" stop-color="#ef4444"/>
+    </radialGradient>
+    <filter id="s" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#000000" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  <rect width="256" height="256" rx="64" fill="#0b1220"/>
+  <path filter="url(#s)" fill="url(#g)" d="M138 20c6 30-2 53-22 74-11 11-18 24-18 39 0 23 18 42 42 42 29 0 52-23 52-52 0-18-8-35-22-51 6 25-6 41-23 55 3-30-18-45-34-69-7-10-12-22-15-38zm-60 98c-16 16-26 39-26 63 0 48 39 87 87 87s87-39 87-87c0-26-12-51-31-67 6 40-21 66-55 66-30 0-55-24-55-55 0-9 2-18 6-26-5 7-10 13-13 16z"/>
+</svg>
+

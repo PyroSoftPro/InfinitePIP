@@ -1,7 +1,7 @@
 {
   "name": "infinitepip-electron",
   "private": true,
-  "version": "0.1.0",
+  "version": "25.12.24",
   "description": "InfinitePIP rewritten from scratch as an Electron app",
   "main": "src/main/main.js",
   "author": "",
@@ -19,6 +19,7 @@
   "build": {
     "appId": "io.pyrosoft.infinitepip",
     "productName": "InfinitePIP",
+    "icon": "src/renderer/icon.svg",
     "files": [
       "src/**",
       "package.json"
@@ -27,6 +28,7 @@
       "output": "dist"
     },
     "win": {
+      "icon": "src/renderer/icon.svg",
       "target": [
         "nsis"
       ]
