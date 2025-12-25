@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PiP</title>
+    <style>
+      :root {
+        --bg: #000;
+        --text: rgba(255, 255, 255, 0.92);
+        --muted: rgba(255, 255, 255, 0.68);
+        --panel: rgba(0, 0, 0, 0.45);
+        --border: rgba(255, 255, 255, 0.12);
+        --shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+      }
+
+      * {
+        box-sizing: border-box;
+        user-select: none;
+      }
+
+      html,
+      body {
+        height: 100%;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        overflow: hidden;
+      }
+
+      #stage {
+        position: absolute;
+        inset: 0;
+        background: #000;
+      }
+
+      #video {
+        position: absolute;
+        inset: 0;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      #canvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        cursor: grab;
+        -webkit-app-region: drag;
+      }
+
+      #canvas.dragging {
+        cursor: grabbing;
+      }
+
+      .hud {
+        position: absolute;
+        left: 10px;
+        right: 10px;
+        top: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        pointer-events: none;
+        opacity: 1;
+        transform: translateY(0);
+        transition: opacity 180ms ease, transform 180ms ease;
+      }
+
+      .chip {
+        pointer-events: none;
+        padding: 8px 10px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: var(--panel);
+        backdrop-filter: blur(10px);
+        color: var(--text);
+        box-shadow: var(--shadow);
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans,
+          Helvetica, Arial;
+        font-size: 12px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .controls {
+        position: absolute;
+        left: 10px;
+        right: 10px;
+        bottom: 10px;
+        display: grid;
+        gap: 10px;
+        padding: 10px;
+        border-radius: 16px;
+        border: 1px solid var(--border);
+        background: rgba(0, 0, 0, 0.35);
+        backdrop-filter: blur(10px);
+        box-shadow: var(--shadow);
+        -webkit-app-region: no-drag;
+        opacity: 1;
+        transform: translateY(0);
+        transition: opacity 200ms ease, transform 200ms ease;
+      }
+
+      body.ui-hidden .hud {
+        opacity: 0;
+        transform: translateY(-8px);
+      }
+
+      body.ui-hidden .controls {
+        opacity: 0;
+        transform: translateY(10px);
+        pointer-events: none;
+        /* When hidden, allow dragging through this area to move the window. */
+        -webkit-app-region: drag;
+      }
+
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .row2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 10px;
+        align-items: center;
+      }
+
+      label {
+        display: grid;
+        gap: 6px;
+        color: var(--muted);
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans,
+          Helvetica, Arial;
+        font-size: 11px;
+      }
+
+      input[type="range"] {
+        width: 100%;
+      }
+
+      button {
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--text);
+        padding: 9px 10px;
+        border-radius: 12px;
+        cursor: pointer;
+        font-weight: 700;
+        font-size: 12px;
+        -webkit-app-region: no-drag;
+      }
+
+      button:hover {
+        background: rgba(255, 255, 255, 0.12);
+      }
+
+      .toast {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        padding: 10px 12px;
+        border-radius: 14px;
+        border: 1px solid var(--border);
+        background: rgba(0, 0, 0, 0.55);
+        color: var(--text);
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans,
+          Helvetica, Arial;
+        font-size: 13px;
+        opacity: 0;
+        transition: opacity 120ms ease;
+        pointer-events: none;
+      }
+
+      .toast.show {
+        opacity: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="stage">
+      <video id="video" autoplay muted playsinline></video>
+      <canvas id="canvas"></canvas>
+      <div class="hud">
+        <div class="chip" id="title">PiP</div>
+        <div class="chip" id="hint">Drag: move window • Pan Mode: pan • +/-: opacity</div>
+      </div>
+      <div class="controls" id="controls">
+        <div class="row">
+          <label>
+            Zoom
+            <input id="zoom" type="range" min="1" max="3" step="0.01" value="1" />
+          </label>
+          <label>
+            Opacity
+            <input id="opacity" type="range" min="0.1" max="1" step="0.05" value="1" />
+          </label>
+          <button id="toggleAot">Always on Top: On</button>
+        </div>
+        <div class="row2">
+          <button id="togglePan">Pan Mode: Off</button>
+          <button id="resetView">Reset</button>
+          <button id="closeBtn">Close</button>
+        </div>
+      </div>
+      <div class="toast" id="toast">Opacity: 100%</div>
+    </div>
+
+    <script src="./pip.js"></script>
+  </body>
+</html>
+
+
