@@ -35,18 +35,6 @@ npm install
 npm run dev
 ```
 
-## Package (optional)
-
-Create installers/artifacts with `electron-builder`:
-
-```bash
-# unpacked directory
-npm run pack
-
-# installer/artifacts
-npm run dist
-```
-
 ## Notes
 
 - Capture uses Electron’s `desktopCapturer` + Chromium `getUserMedia` with `chromeMediaSourceId`.
