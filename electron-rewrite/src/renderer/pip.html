@@ -58,6 +58,38 @@
         cursor: grabbing;
       }
 
+      .hudRight {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 10px;
+        min-width: 0;
+      }
+
+      .aspectToggle {
+        pointer-events: auto;
+        width: 34px;
+        height: 34px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: rgba(0, 0, 0, 0.45);
+        color: var(--text);
+        display: grid;
+        place-items: center;
+        cursor: pointer;
+        box-shadow: var(--shadow);
+        -webkit-app-region: no-drag;
+        flex: 0 0 auto;
+      }
+
+      .aspectToggle:hover {
+        background: rgba(0, 0, 0, 0.60);
+      }
+
+      .aspectToggle[aria-pressed="true"] {
+        border-color: rgba(124, 58, 237, 0.55);
+      }
+
       .hud {
         position: absolute;
         left: 10px;
@@ -194,7 +226,18 @@
       <canvas id="canvas"></canvas>
       <div class="hud">
         <div class="chip" id="title">PiP</div>
-        <div class="chip" id="hint">Drag: move window • Pan Mode: pan • +/-: opacity</div>
+        <div class="hudRight">
+          <button
+            class="aspectToggle"
+            id="aspectToggle"
+            aria-label="Maintain aspect ratio"
+            aria-pressed="true"
+            title="Maintain aspect ratio"
+          >
+            🔒
+          </button>
+          <div class="chip" id="hint">Drag: move window • Pan Mode: pan • +/-: opacity</div>
+        </div>
       </div>
       <div class="controls" id="controls">
         <div class="row">

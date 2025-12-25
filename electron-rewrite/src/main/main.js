@@ -90,14 +90,19 @@ app.on("window-all-closed", () => {
 });
 
 ipcMain.handle("pip:open", async (_evt, payload) => {
-  const { sourceId, sourceName, crop } = payload || {};
+  const { sourceId, sourceName, crop, view } = payload || {};
   if (!sourceId) throw new Error("sourceId is required");
 
   const pip = createPipWindow();
 
   // Send init after page is ready.
   pip.webContents.once("did-finish-load", () => {
-    pip.webContents.send("pip:init", { sourceId, sourceName: sourceName || "Source", crop: crop || null });
+    pip.webContents.send("pip:init", {
+      sourceId,
+      sourceName: sourceName || "Source",
+      crop: crop || null,
+      view: view || null
+    });
   });
 
   return { ok: true };
@@ -140,6 +145,20 @@ ipcMain.handle("pip:setOpacity", async (evt, value) => {
   if (Number.isNaN(v)) return { ok: false };
   win.setOpacity(Math.max(0.1, Math.min(1, v)));
   return { ok: true };
+});
+
+ipcMain.handle("pip:setAspectRatio", async (evt, ratio) => {
+  const win = BrowserWindow.fromWebContents(evt.sender);
+  if (!win) return { ok: false };
+  const r = Number(ratio);
+  if (!Number.isFinite(r)) return { ok: false };
+  try {
+    // Electron: ratio 0 disables the aspect ratio constraint.
+    win.setAspectRatio(r);
+    return { ok: true };
+  } catch {
+    return { ok: false };
+  }
 });
 
 ipcMain.handle("pip:isCursorInside", async (evt) => {

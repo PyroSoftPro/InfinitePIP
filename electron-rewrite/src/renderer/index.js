@@ -27,7 +27,12 @@ const regionY = el("regionY");
 const regionW = el("regionW");
 const regionH = el("regionH");
 const regionInfo = el("regionInfo");
-const regionPreviewImg = el("regionPreviewImg");
+const regionPreviewWrap = el("regionPreviewWrap");
+const regionPreviewVideo = el("regionPreviewVideo");
+const regionPreviewCanvas = el("regionPreviewCanvas");
+const regionPreviewCtx = regionPreviewCanvas.getContext("2d");
+const regionPreviewZoom = el("regionPreviewZoom");
+const regionPreviewReset = el("regionPreviewReset");
 const regionPreviewStatus = el("regionPreviewStatus");
 
 const statusDot = el("statusDot");
@@ -38,6 +43,13 @@ let currentTab = "screens"; // screens | windows | regions | active
 
 let regionScreens = [];
 let regionPreviewInFlight = false;
+let regionPreviewStream = null;
+let regionPreviewRaf = 0;
+let regionPreviewZoomValue = Number(regionPreviewZoom.value || 1);
+let regionPreviewPanX = 0; // content pan (matches PiP)
+let regionPreviewPanY = 0; // content pan (matches PiP)
+let regionPreviewDragging = false;
+let regionPreviewDragStart = null; // {x,y,cropX,cropY,panX,panY}
 
 function setTab(tab) {
   currentTab = tab;
@@ -55,15 +67,19 @@ function setTab(tab) {
     panelTitle.textContent = "Available Screens";
     panelHelp.textContent = "Create picture-in-picture windows from any connected display.";
     loadSources();
+    stopRegionPreview();
   } else if (tab === "windows") {
     panelTitle.textContent = "Application Windows";
     panelHelp.textContent = "Capture and display content from any application window.";
     loadSources();
+    stopRegionPreview();
   } else if (tab === "regions") {
     ensureRegionScreens().then(() => {
       // Auto-run preview when the user enters the Regions page.
-      captureRegionPreview();
+      startRegionPreview();
     });
+  } else if (tab === "active") {
+    stopRegionPreview();
   }
 }
 
@@ -198,6 +214,16 @@ function getRegionCrop() {
   return { x, y, w, h };
 }
 
+function clamp(n, min, max) {
+  return Math.max(min, Math.min(max, n));
+}
+
+function applyRegionPreviewLayoutFromInputs() {
+  const crop = getRegionCrop();
+  // Make the preview box match the intended output aspect ratio.
+  regionPreviewWrap.style.aspectRatio = `${crop.w} / ${crop.h}`;
+}
+
 function selectedRegionScreen() {
   const id = regionScreenSelect.value;
   return regionScreens.find((s) => s.id === id) || regionScreens[0] || null;
@@ -231,59 +257,57 @@ async function ensureRegionScreens() {
   }
 }
 
-async function captureRegionPreview() {
-  if (regionPreviewInFlight) return;
-  const screen = selectedRegionScreen();
-  if (!screen) {
-    regionPreviewStatus.textContent = "No screen selected.";
-    return;
+function resizeRegionPreviewCanvasToDisplay() {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = regionPreviewCanvas.getBoundingClientRect();
+  const w = Math.max(1, Math.floor(rect.width * dpr));
+  const h = Math.max(1, Math.floor(rect.height * dpr));
+  if (regionPreviewCanvas.width !== w || regionPreviewCanvas.height !== h) {
+    regionPreviewCanvas.width = w;
+    regionPreviewCanvas.height = h;
   }
+}
+
+function drawRegionPreview() {
+  regionPreviewRaf = requestAnimationFrame(drawRegionPreview);
+  if (!regionPreviewVideo.videoWidth || !regionPreviewVideo.videoHeight) return;
+
+  resizeRegionPreviewCanvasToDisplay();
+  const dpr = window.devicePixelRatio || 1;
+  const cw = regionPreviewCanvas.width;
+  const ch = regionPreviewCanvas.height;
+
+  regionPreviewCtx.save();
+  regionPreviewCtx.setTransform(1, 0, 0, 1, 0, 0);
+  regionPreviewCtx.clearRect(0, 0, cw, ch);
+  regionPreviewCtx.fillStyle = "#000";
+  regionPreviewCtx.fillRect(0, 0, cw, ch);
 
   const crop = getRegionCrop();
-  updateRegionInfo();
-  regionPreviewStatus.textContent = "Capturing preview…";
+  const sw = Math.max(1, crop.w);
+  const sh = Math.max(1, crop.h);
 
-  let stream = null;
-  regionPreviewInFlight = true;
-  try {
-    const constraints = {
-      audio: false,
-      video: { mandatory: { chromeMediaSource: "desktop", chromeMediaSourceId: screen.id } }
-    };
-    // eslint-disable-next-line no-undef
-    stream = await navigator.mediaDevices.getUserMedia(constraints);
+  const maxX = Math.max(0, regionPreviewVideo.videoWidth - sw);
+  const maxY = Math.max(0, regionPreviewVideo.videoHeight - sh);
+  const sx = clamp(crop.x, 0, maxX);
+  const sy = clamp(crop.y, 0, maxY);
 
-    const v = document.createElement("video");
-    v.muted = true;
-    v.playsInline = true;
-    v.srcObject = stream;
-    await v.play();
+  if (sx !== crop.x) regionX.value = String(sx);
+  if (sy !== crop.y) regionY.value = String(sy);
 
-    await new Promise((r) => setTimeout(r, 60));
+  // Match PiP rendering exactly: cover-fit the crop into the canvas, then apply zoom/pan.
+  const scaleFit = Math.max(cw / sw, ch / sh);
+  const baseW = sw * scaleFit;
+  const baseH = sh * scaleFit;
 
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, crop.w);
-    canvas.height = Math.max(1, crop.h);
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(v, crop.x, crop.y, crop.w, crop.h, 0, 0, canvas.width, canvas.height);
+  const centerX = cw / 2 + regionPreviewPanX * dpr;
+  const centerY = ch / 2 + regionPreviewPanY * dpr;
 
-    regionPreviewImg.src = canvas.toDataURL("image/jpeg", 0.85);
-    regionPreviewStatus.textContent = "Preview updated.";
-  } catch (err) {
-    console.error(err);
-    regionPreviewStatus.textContent = "Preview failed (are coordinates valid for that screen?).";
-  } finally {
-    regionPreviewInFlight = false;
-    if (stream) {
-      for (const t of stream.getTracks()) {
-        try {
-          t.stop();
-        } catch {
-          // ignore
-        }
-      }
-    }
-  }
+  regionPreviewCtx.translate(centerX, centerY);
+  regionPreviewCtx.scale(regionPreviewZoomValue, regionPreviewZoomValue);
+  regionPreviewCtx.drawImage(regionPreviewVideo, sx, sy, sw, sh, -baseW / 2, -baseH / 2, baseW, baseH);
+
+  regionPreviewCtx.restore();
 }
 
 async function createRegionPip() {
@@ -298,8 +322,65 @@ async function createRegionPip() {
   await InfinitePIP.openRegionPip({
     sourceId: screen.id,
     sourceName: `Region (${crop.w}×${crop.h} at ${crop.x},${crop.y})`,
-    crop
+    crop,
+    view: {
+      zoom: regionPreviewZoomValue,
+      panX: regionPreviewPanX,
+      panY: regionPreviewPanY
+    }
   });
+}
+
+function stopRegionPreview() {
+  cancelAnimationFrame(regionPreviewRaf);
+  regionPreviewRaf = 0;
+  if (regionPreviewStream) {
+    for (const t of regionPreviewStream.getTracks()) {
+      try {
+        t.stop();
+      } catch {
+        // ignore
+      }
+    }
+    regionPreviewStream = null;
+  }
+  regionPreviewVideo.srcObject = null;
+}
+
+async function startRegionPreview() {
+  if (regionPreviewInFlight) return;
+  const screen = selectedRegionScreen();
+  if (!screen) {
+    regionPreviewStatus.textContent = "No screen selected.";
+    return;
+  }
+
+  updateRegionInfo();
+  applyRegionPreviewLayoutFromInputs();
+  regionPreviewStatus.textContent = "Starting preview…";
+
+  regionPreviewInFlight = true;
+  try {
+    stopRegionPreview();
+    const constraints = {
+      audio: false,
+      video: { mandatory: { chromeMediaSource: "desktop", chromeMediaSourceId: screen.id } }
+    };
+    // eslint-disable-next-line no-undef
+    regionPreviewStream = await navigator.mediaDevices.getUserMedia(constraints);
+    regionPreviewVideo.srcObject = regionPreviewStream;
+    await regionPreviewVideo.play();
+
+    cancelAnimationFrame(regionPreviewRaf);
+    regionPreviewRaf = requestAnimationFrame(drawRegionPreview);
+    regionPreviewStatus.textContent = "Live crop tool.";
+  } catch (err) {
+    console.error(err);
+    stopRegionPreview();
+    regionPreviewStatus.textContent = "Preview failed (check permissions / try another screen).";
+  } finally {
+    regionPreviewInFlight = false;
+  }
 }
 
 function updateStatus(count) {
@@ -336,10 +417,89 @@ closeAllBtn2.addEventListener("click", () => {
 });
 
 for (const input of [regionX, regionY, regionW, regionH]) {
-  input.addEventListener("input", updateRegionInfo);
+  input.addEventListener("input", () => {
+    updateRegionInfo();
+    applyRegionPreviewLayoutFromInputs();
+    // Crop changes should reflect immediately in the live preview.
+    if (currentTab === "regions") regionPreviewStatus.textContent = "Live crop tool.";
+  });
 }
-regionPreviewBtn.addEventListener("click", captureRegionPreview);
+regionScreenSelect.addEventListener("change", () => {
+  if (currentTab === "regions") startRegionPreview();
+});
+regionPreviewBtn.addEventListener("click", () => startRegionPreview());
 regionCreateBtn.addEventListener("click", createRegionPip);
+
+regionPreviewZoom.addEventListener("input", () => {
+  regionPreviewZoomValue = Number(regionPreviewZoom.value || 1);
+  applyRegionPreviewLayoutFromInputs();
+});
+
+// Dragging is always enabled for crop positioning.
+regionPreviewCanvas.classList.add("pan");
+
+regionPreviewReset.addEventListener("click", () => {
+  regionPreviewZoomValue = 1.0;
+  regionPreviewZoom.value = "1";
+  regionPreviewPanX = 0;
+  regionPreviewPanY = 0;
+});
+
+regionPreviewCanvas.addEventListener("pointerdown", (e) => {
+  regionPreviewDragging = true;
+  regionPreviewCanvas.classList.add("dragging");
+  regionPreviewCanvas.setPointerCapture(e.pointerId);
+  regionPreviewDragStart = {
+    x: e.clientX,
+    y: e.clientY,
+    cropX: Number(regionX.value || 0),
+    cropY: Number(regionY.value || 0),
+    panX: regionPreviewPanX,
+    panY: regionPreviewPanY
+  };
+});
+
+regionPreviewCanvas.addEventListener("pointermove", (e) => {
+  if (!regionPreviewDragging || !regionPreviewDragStart) return;
+  const dx = e.clientX - regionPreviewDragStart.x;
+  const dy = e.clientY - regionPreviewDragStart.y;
+
+  // Drag screen under the viewport -> adjust crop origin (X/Y).
+  const crop = getRegionCrop();
+  const sw = Math.max(1, crop.w);
+  const sh = Math.max(1, crop.h);
+  const cssW = Math.max(1, regionPreviewCanvas.clientWidth);
+  const cssH = Math.max(1, regionPreviewCanvas.clientHeight);
+  const scaleFitCss = Math.max(cssW / sw, cssH / sh);
+
+  const dxSrc = -dx / (scaleFitCss * regionPreviewZoomValue);
+  const dySrc = -dy / (scaleFitCss * regionPreviewZoomValue);
+
+  const maxX = Math.max(0, regionPreviewVideo.videoWidth - sw);
+  const maxY = Math.max(0, regionPreviewVideo.videoHeight - sh);
+  const nextX = clamp(regionPreviewDragStart.cropX + dxSrc, 0, maxX);
+  const nextY = clamp(regionPreviewDragStart.cropY + dySrc, 0, maxY);
+
+  regionX.value = String(Math.round(nextX));
+  regionY.value = String(Math.round(nextY));
+  updateRegionInfo();
+});
+
+applyRegionPreviewLayoutFromInputs();
+
+function endRegionPreviewDrag() {
+  regionPreviewDragging = false;
+  regionPreviewDragStart = null;
+  regionPreviewCanvas.classList.remove("dragging");
+}
+
+regionPreviewCanvas.addEventListener("pointerup", endRegionPreviewDrag);
+regionPreviewCanvas.addEventListener("pointercancel", endRegionPreviewDrag);
+
+// Keep canvas crisp when the user resizes the preview box.
+new ResizeObserver(() => {
+  resizeRegionPreviewCanvasToDisplay();
+}).observe(regionPreviewCanvas);
 
 InfinitePIP.onPipsCount(updateStatus);
 updateStatus(0);

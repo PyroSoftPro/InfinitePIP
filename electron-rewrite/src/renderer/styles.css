@@ -219,7 +219,8 @@ body {
 .thumb img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  /* Preserve aspect ratio for source thumbnails (avoid cropping/stretching). */
+  object-fit: contain;
   display: block;
 }
 
@@ -333,6 +334,51 @@ body {
 
 .regionField input:focus {
   border-color: rgba(124, 58, 237, 0.55);
+}
+
+.regionPreviewWrap {
+  margin-top: 12px;
+  border: 1px solid var(--subtle);
+  border-radius: 14px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.03);
+  height: 240px;
+  resize: both;
+  min-height: 160px;
+  min-width: 240px;
+  max-width: 100%;
+  position: relative;
+  transform-origin: top left;
+}
+
+.regionPreviewCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: default;
+}
+
+.regionPreviewCanvas.pan {
+  cursor: grab;
+}
+
+.regionPreviewCanvas.pan.dragging {
+  cursor: grabbing;
+}
+
+.regionPreviewControls {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.regionPreviewLabel {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .emptyState {

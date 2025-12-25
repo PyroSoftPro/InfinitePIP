@@ -25,8 +25,8 @@ contextBridge.exposeInMainWorld("InfinitePIP", {
     return ipcRenderer.invoke("pip:open", { sourceId, sourceName });
   },
 
-  openRegionPip({ sourceId, sourceName, crop }) {
-    return ipcRenderer.invoke("pip:open", { sourceId, sourceName, crop });
+  openRegionPip({ sourceId, sourceName, crop, view }) {
+    return ipcRenderer.invoke("pip:open", { sourceId, sourceName, crop, view });
   },
 
   closeAllPips() {
@@ -39,6 +39,10 @@ contextBridge.exposeInMainWorld("InfinitePIP", {
 
   setPipOpacity(value) {
     return ipcRenderer.invoke("pip:setOpacity", value);
+  },
+
+  setPipAspectRatio(ratio) {
+    return ipcRenderer.invoke("pip:setAspectRatio", ratio);
   },
 
   isCursorInsidePip() {

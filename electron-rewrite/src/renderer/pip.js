@@ -13,6 +13,7 @@ const togglePanBtn = document.getElementById("togglePan");
 const resetViewBtn = document.getElementById("resetView");
 const closeBtn = document.getElementById("closeBtn");
 const controlsEl = document.getElementById("controls");
+const aspectToggleBtn = document.getElementById("aspectToggle");
 
 let stream = null;
 let sourceId = null;
@@ -29,11 +30,29 @@ let dragging = false;
 let dragStart = null; // {x,y,panX,panY}
 let panMode = false;
 
+let maintainAspectRatio = true;
+
 let rafId = 0;
 let hideUiTimer = 0;
 let uiHidden = false;
 let mouseInside = true;
 let hoverPollTimer = 0;
+
+function desiredAspectRatio() {
+  // Prefer crop ratio when present; otherwise use the live video size.
+  if (crop && crop.w > 0 && crop.h > 0) return crop.w / crop.h;
+  if (video.videoWidth > 0 && video.videoHeight > 0) return video.videoWidth / video.videoHeight;
+  return 0;
+}
+
+async function applyAspectRatioLock() {
+  // Use 0 to disable Electron's aspect ratio lock.
+  const ratio = maintainAspectRatio ? desiredAspectRatio() : 0;
+  await Promise.resolve(InfinitePIP.setPipAspectRatio(ratio)).catch(() => null);
+  aspectToggleBtn.textContent = maintainAspectRatio ? "🔒" : "🔓";
+  aspectToggleBtn.setAttribute("aria-pressed", maintainAspectRatio ? "true" : "false");
+  aspectToggleBtn.title = maintainAspectRatio ? "Maintain aspect ratio" : "Free resize";
+}
 
 function resizeCanvas() {
   const dpr = window.devicePixelRatio || 1;
@@ -129,6 +148,9 @@ async function startCapture() {
   stream = await navigator.mediaDevices.getUserMedia(constraints);
   video.srcObject = stream;
   await video.play();
+
+  // Now that video dimensions are known, (re)apply aspect ratio lock if enabled.
+  await applyAspectRatioLock();
 
   cancelAnimationFrame(rafId);
   rafId = requestAnimationFrame(drawFrame);
@@ -241,6 +263,13 @@ togglePanBtn.addEventListener("click", () => {
   showToast(panMode ? "Pan Mode: On" : "Pan Mode: Off");
 });
 
+aspectToggleBtn.addEventListener("click", async () => {
+  noteActivity();
+  maintainAspectRatio = !maintainAspectRatio;
+  await applyAspectRatioLock();
+  showToast(maintainAspectRatio ? "Aspect Ratio: Locked" : "Aspect Ratio: Unlocked");
+});
+
 resetViewBtn.addEventListener("click", () => {
   noteActivity();
   resetView();
@@ -286,11 +315,21 @@ InfinitePIP.onPipInit(async (payload) => {
   sourceId = payload?.sourceId || null;
   sourceName = payload?.sourceName || "Source";
   crop = payload?.crop || null;
+  const view = payload?.view || null;
   titleEl.textContent = `PiP — ${sourceName}`;
+  maintainAspectRatio = true;
   updateAotUI();
   updatePanUI();
   setOpacity(opacity);
   resetView();
+  if (view) {
+    if (typeof view.zoom === "number") {
+      zoom = clamp(view.zoom, 1, 3);
+      zoomEl.value = String(zoom);
+    }
+    if (typeof view.panX === "number") panX = view.panX;
+    if (typeof view.panY === "number") panY = view.panY;
+  }
   setUiHidden(false);
   mouseInside = true;
   clearTimeout(hideUiTimer);
