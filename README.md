@@ -1,14 +1,12 @@
 # InfinitePIP
 
-<img width="2557" height="1435" alt="image" src="https://github.com/user-attachments/assets/dc9a2ab7-83d9-43f6-9796-438f05af4f37" />
-
 **InfinitePIP** is an advanced desktop **picture-in-picture (PiP)** tool by **PyroSoft Productions** with a modern interface. It lets you create always-on-top, borderless PiP windows from **monitors**, **application windows**, or a **custom screen region**.
 
 - **Open source / free code**: This repository contains the full source code for InfinitePIP.
 - **Donationware binaries**: Prebuilt binaries are published on **Itch.io** as **donationware** (free to download, with an optional donation).
 - **Sponsored by**: **Playcast.io**
 
----
+<img width="2557" height="1435" alt="image" src="https://github.com/user-attachments/assets/dc9a2ab7-83d9-43f6-9796-438f05af4f37" />
 
 ## Project status
 
